@@ -21,13 +21,39 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
+const title = "Centro Médico Integral Santísima Trinidad · Ciudad Bolívar";
+const description =
+  "Consulta médica, ecosonograma, electrocardiograma y laboratorio clínico bajo un mismo techo en Ciudad Bolívar. Agenda por WhatsApp.";
+
+// Icons and share images come from the file conventions in this folder:
+// icon.svg, apple-icon.png, opengraph-image.png, twitter-image.png (sources in assets/brand/).
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "Centro Médico Integral Santísima Trinidad · Ciudad Bolívar",
+    default: title,
     template: "%s · Santísima Trinidad",
   },
-  description:
-    "Consulta médica, ecosonograma, electrocardiograma y laboratorio clínico bajo un mismo techo en Ciudad Bolívar. Agenda por WhatsApp.",
+  description,
+  applicationName: "Santísima Trinidad",
+  openGraph: {
+    type: "website",
+    locale: "es_VE",
+    siteName: "Centro Médico Integral Santísima Trinidad",
+    title,
+    description,
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
