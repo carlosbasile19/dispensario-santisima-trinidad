@@ -63,11 +63,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
+      // Lets Next.js turn off smooth scrolling while it resets scroll on navigation.
+      data-scroll-behavior="smooth"
       className={`${instrumentSans.variable} ${newsreader.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        {/* Route changes animate as one ".page" group (see globals.css). */}
-        <ViewTransition default="page">{children}</ViewTransition>
+        {/* Route changes animate as one ".page" group (see globals.css), except
+            navigations started from partway down a page (see prefetch-routes). */}
+        <ViewTransition default={{ "from-scrolled": "none", default: "page" }}>
+          {children}
+        </ViewTransition>
         <PrefetchRoutes />
       </body>
     </html>

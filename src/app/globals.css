@@ -51,23 +51,48 @@ body {
   interpolate-size: allow-keywords; /* lets <details> animate to height:auto */
 }
 
+/* Only opacity + transform: both run on the compositor, so they stay smooth
+   on phones. (Blur repaints every frame and stutters on mobile GPUs, so it is
+   kept only for the hero on large screens: see rise-soft.) */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(18px);
-    filter: blur(6px);
+    transform: translate3d(0, 16px, 0);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: blur(0);
+  }
+}
+
+@keyframes rise-soft {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
 @keyframes settle {
   from {
     opacity: 0;
-    transform: scale(1.05);
+    transform: scale(1.04);
   }
   to {
     opacity: 1;
@@ -85,6 +110,11 @@ body {
   .hero-stagger > :nth-child(3) { animation-delay: 0.27s; }
   .hero-stagger > :nth-child(4) { animation-delay: 0.39s; }
   .hero-stagger > :nth-child(5) { animation-delay: 0.51s; }
+  @media (min-width: 1024px) and (pointer: fine) {
+    .hero-stagger > * {
+      animation-name: rise-soft;
+    }
+  }
 
   /* Hero photos settle from a slight zoom; siblings follow in turn. */
   .hero-media {
@@ -102,9 +132,10 @@ body {
      Browsers without scroll timelines simply show the content. */
   @supports (animation-timeline: view()) {
     main > section:not(:first-child) {
-      animation: rise linear both;
+      animation: reveal linear both;
       animation-timeline: view();
-      animation-range: entry 0% entry 55%;
+      /* finishes within 240px of scrolling, whatever the section's height */
+      animation-range: entry 0px entry 240px;
     }
   }
 
@@ -136,8 +167,7 @@ body {
     transition:
       color 0.25s ease,
       background-color 0.25s ease,
-      border-color 0.25s ease,
-      transform 0.25s var(--ease-out-soft);
+      border-color 0.25s ease;
   }
 
   /* ---- Page transitions (React <ViewTransition>, see layout.tsx) ---- */
@@ -145,24 +175,21 @@ body {
     animation: none; /* the .page group carries the motion */
   }
   ::view-transition-old(.page) {
-    animation: 0.22s ease-in both page-out;
+    animation: 0.18s ease-out both page-out;
   }
   ::view-transition-new(.page) {
-    animation: 0.55s var(--ease-out-soft) 0.12s both page-in;
+    animation: 0.42s var(--ease-out-soft) both page-in;
   }
 }
 
 @keyframes page-out {
   to {
     opacity: 0;
-    filter: blur(4px);
-    transform: translateY(-8px);
   }
 }
 @keyframes page-in {
   from {
     opacity: 0;
-    filter: blur(6px);
-    transform: translateY(14px);
+    transform: translate3d(0, 10px, 0);
   }
 }
