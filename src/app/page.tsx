@@ -12,8 +12,6 @@ import lab2 from "../../public/images/lab2.jpg";
 import logo from "../../public/images/logo.jpg";
 import senior from "../../public/images/senior.jpg";
 import vials from "../../public/images/vials.jpg";
-import casheaAppStore from "../../public/images/cashea/app-store.png";
-import casheaGooglePlay from "../../public/images/cashea/google-play.png";
 import casheaIcon from "../../public/images/cashea/icon.png";
 import casheaLogo from "../../public/images/cashea/logo.png";
 
@@ -24,8 +22,6 @@ const WHATSAPP_URL = "https://wa.me/message/EWUXZCGJGG2TO1";
 const INSTAGRAM_URL = "https://www.instagram.com/santisimatrinidad_cmi/";
 const PHONE_DISPLAY = "0412-8261258";
 const PHONE_TEL = "tel:+584128261258";
-const CASHEA_APP_STORE_URL = "https://apps.apple.com/us/app/cashea/id1620708795";
-const CASHEA_GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.cashea.app";
 const MAPS_URL =
   "https://www.google.com/maps/search/?api=1&query=Calle+Brasil+36,+Vista+Hermosa,+Ciudad+Bol%C3%ADvar";
 
@@ -398,18 +394,6 @@ function Cashea() {
               </li>
             ))}
           </ol>
-          <p className="text-sm leading-normal text-muted">
-            Necesitas la app de Cashea con tu línea de compra aprobada.
-          </p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-lg bg-navy px-3.5 py-3">
-            <span className="mr-1 text-[13px] text-frost">Descarga Cashea</span>
-            <a href={CASHEA_APP_STORE_URL} target="_blank" rel="noopener noreferrer">
-              <Image src={casheaAppStore} alt="Descargar en App Store" className="h-9 w-auto" sizes="119px" />
-            </a>
-            <a href={CASHEA_GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer">
-              <Image src={casheaGooglePlay} alt="Descargar en Google Play" className="h-9 w-auto" sizes="119px" />
-            </a>
-          </div>
         </div>
       </div>
     </section>
