@@ -117,14 +117,6 @@ const visitSteps = [
 export default function Home() {
   return (
     <div className="min-h-screen bg-cream text-navy">
-      <a
-        href="#jornada"
-        className="block bg-navy px-5 py-[11px] text-center text-sm text-frost"
-      >
-        Jornada de Atención Médica: chequeo general, laboratorio, electrocardiograma y
-        ecosonograma · <span className="text-mint">Reserva tu cupo →</span>
-      </a>
-
       <SiteHeader />
 
       <main>

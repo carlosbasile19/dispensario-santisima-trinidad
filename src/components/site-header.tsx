@@ -72,6 +72,8 @@ export function SiteHeader() {
   const closeMenu = () => menuRef.current?.close();
 
   return (
+    <>
+    <AnnouncementBar onHome={pathname === "/"} />
     <ViewTransition name="site-header" default="none">
       <header
         className={[
@@ -227,6 +229,33 @@ export function SiteHeader() {
           </div>
         </dialog>
       </header>
+    </ViewTransition>
+    </>
+  );
+}
+
+// Jornada announcement, on every public page. On the home page it scrolls to
+// the Jornadas section; elsewhere it takes you there. Named so it holds still
+// while the page underneath transitions.
+function AnnouncementBar({ onHome }: { onHome: boolean }) {
+  const className = "block bg-navy px-5 py-[11px] text-center text-sm text-frost";
+  const content = (
+    <>
+      Jornada de Atención Médica: chequeo general, laboratorio, electrocardiograma y
+      ecosonograma · <span className="text-mint">Reserva tu cupo →</span>
+    </>
+  );
+  return (
+    <ViewTransition name="announcement-bar" default="none">
+      {onHome ? (
+        <a href="#jornada" className={className}>
+          {content}
+        </a>
+      ) : (
+        <Link href="/#jornada" className={className}>
+          {content}
+        </Link>
+      )}
     </ViewTransition>
   );
 }
