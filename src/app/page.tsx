@@ -12,6 +12,10 @@ import lab2 from "../../public/images/lab2.jpg";
 import logo from "../../public/images/logo.jpg";
 import senior from "../../public/images/senior.jpg";
 import vials from "../../public/images/vials.jpg";
+import casheaAppStore from "../../public/images/cashea/app-store.png";
+import casheaGooglePlay from "../../public/images/cashea/google-play.png";
+import casheaIcon from "../../public/images/cashea/icon.png";
+import casheaLogo from "../../public/images/cashea/logo.png";
 
 // Implements "Landing Santísima Trinidad.dc.html" (Claude Design project
 // "Clinic landing page directions"), default variant: centered hero + jornada bar.
@@ -20,6 +24,8 @@ const WHATSAPP_URL = "https://wa.me/message/EWUXZCGJGG2TO1";
 const INSTAGRAM_URL = "https://www.instagram.com/santisimatrinidad_cmi/";
 const PHONE_DISPLAY = "0412-8261258";
 const PHONE_TEL = "tel:+584128261258";
+const CASHEA_APP_STORE_URL = "https://apps.apple.com/us/app/cashea/id1620708795";
+const CASHEA_GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.cashea.app";
 const MAPS_URL =
   "https://www.google.com/maps/search/?api=1&query=Calle+Brasil+36,+Vista+Hermosa,+Ciudad+Bol%C3%ADvar";
 
@@ -27,7 +33,7 @@ const highlights = [
   { title: "Un solo lugar", text: "Consulta, estudios y laboratorio sin ir de un sitio a otro." },
   { title: "Desde temprano", text: "Lunes a viernes a partir de las 7:30am." },
   { title: "Trato cercano", text: "La salud que mereces, con el trato que esperas." },
-  { title: "Para toda la familia", text: "De la consulta general al adulto mayor." },
+  { title: "Para toda la familia", text: "Tercera edad, adultos, adolescentes y niños." },
 ];
 
 const services: { image: StaticImageData; alt: string; title: string; text: string }[] = [
@@ -35,7 +41,7 @@ const services: { image: StaticImageData; alt: string; title: string; text: stri
     image: consult2,
     alt: "Consulta médica",
     title: "Consultas médicas",
-    text: "Medicina general e integral. Control de diabetes e hipertensión con seguimiento.",
+    text: "Medicina general e integral para todas las edades. Control de diabetes e hipertensión con seguimiento.",
   },
   {
     image: eco,
@@ -76,6 +82,21 @@ const ongoingCare = [
   { title: "Adulto mayor", text: "Evaluación integral y prevención" },
 ];
 
+const casheaSteps = [
+  {
+    title: "Avísanos en recepción",
+    text: "Dinos que pagarás con Cashea y escanea nuestro código QR con la app.",
+  },
+  {
+    title: "Paga la inicial",
+    text: "La abonas en el centro el día de tu atención. El porcentaje depende de tu nivel en Cashea.",
+  },
+  {
+    title: "El resto, cada 14 días",
+    text: "En cuotas iguales y sin intereses, que pagas desde la app.",
+  },
+];
+
 const visitSteps = [
   {
     title: "Escríbenos",
@@ -109,6 +130,7 @@ export default function Home() {
         <Highlights />
         <Services />
         <Checkup />
+        <Cashea />
         <OngoingCare />
         <Visit />
         <Jornada />
@@ -209,6 +231,16 @@ function Hero() {
             Conoce los servicios
           </a>
         </div>
+        <div className="mt-[26px]">
+          <a
+            href="#cashea"
+            className="inline-flex flex-wrap items-center justify-center gap-2.5 text-sm text-ink hover:text-navy"
+          >
+            <span>Aceptamos</span>
+            <Image src={casheaLogo} alt="Cashea" className="h-6 w-auto" sizes="97px" />
+            <span>· paga en cuotas sin intereses</span>
+          </a>
+        </div>
       </div>
       <div className="mt-16 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
         <Image src={lab} alt="Muestras de laboratorio" className={`${photo} hidden md:block`} sizes="(min-width: 768px) 30vw, 100vw" />
@@ -304,14 +336,23 @@ function Checkup() {
               </li>
             ))}
           </ul>
-          <a
-            href={WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1.5 self-start rounded-lg bg-cream px-6 py-[15px] text-base text-navy hover:bg-white"
-          >
-            Reservar mi chequeo
-          </a>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-6 gap-y-3.5">
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-cream px-6 py-[15px] text-base text-navy hover:bg-white"
+            >
+              Reservar mi chequeo
+            </a>
+            <a
+              href="#cashea"
+              className="inline-flex items-center gap-2.5 text-[15px] text-mint hover:text-white"
+            >
+              <Image src={casheaIcon} alt="" className="size-7 rounded-[7px]" sizes="28px" />
+              o págalo en cuotas con Cashea →
+            </a>
+          </div>
         </div>
         <Image
           src={vials}
@@ -319,6 +360,57 @@ function Checkup() {
           className="h-full min-h-[320px] w-full object-cover md:min-h-[520px]"
           sizes="(min-width: 768px) 50vw, 100vw"
         />
+      </div>
+    </section>
+  );
+}
+
+function Cashea() {
+  return (
+    <section id="cashea" className={`${container} scroll-mt-6 pt-28`}>
+      <div className="flex flex-wrap items-start gap-x-16 gap-y-12 rounded-md border border-line bg-white p-6 sm:p-14">
+        <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-[22px]">
+          <div className="flex flex-wrap items-center gap-3.5">
+            <Eyebrow>Aceptamos</Eyebrow>
+            <Image src={casheaLogo} alt="Cashea" className="h-9 w-auto" sizes="145px" />
+          </div>
+          <h2 className={h2}>
+            Cuídate hoy, <i className="text-teal">paga en cuotas.</i>
+          </h2>
+          <p className="max-w-[460px] text-[17px] leading-relaxed text-pretty text-ink">
+            Tu consulta, tus estudios o tu chequeo completo no tienen que pagarse de una sola
+            vez: das una inicial y el resto lo pagas en cuotas sin intereses.
+          </p>
+          <PrimaryButton className="mt-1.5 self-start">Agenda por WhatsApp</PrimaryButton>
+        </div>
+        <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+          <h3 className="text-[13px] font-normal tracking-[0.12em] text-teal">ASÍ FUNCIONA</h3>
+          <ol className="border-t border-line">
+            {casheaSteps.map((step, i) => (
+              <li key={step.title} className="flex items-baseline gap-5 border-b border-line py-[18px]">
+                <span className="flex-none font-mono text-[13px] text-teal">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <span className="block font-serif text-[22px] leading-[1.2]">{step.title}</span>
+                  <span className="mt-1 block text-[15px] leading-normal text-muted">{step.text}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="text-sm leading-normal text-muted">
+            Necesitas la app de Cashea con tu línea de compra aprobada.
+          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-lg bg-navy px-3.5 py-3">
+            <span className="mr-1 text-[13px] text-frost">Descarga Cashea</span>
+            <a href={CASHEA_APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+              <Image src={casheaAppStore} alt="Descargar en App Store" className="h-9 w-auto" sizes="119px" />
+            </a>
+            <a href={CASHEA_GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer">
+              <Image src={casheaGooglePlay} alt="Descargar en Google Play" className="h-9 w-auto" sizes="119px" />
+            </a>
+          </div>
+        </div>
       </div>
     </section>
   );
