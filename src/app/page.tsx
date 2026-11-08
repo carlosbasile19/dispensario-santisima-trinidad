@@ -128,7 +128,7 @@ export default function Home() {
       <SiteHeader />
 
       <main>
-        <HomeHero variant="dividido" />
+        <HomeHero variant="protagonista" />
         <Highlights />
         <Services />
         <Modules />

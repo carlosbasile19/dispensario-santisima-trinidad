@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
 import { ViewTransition } from "react";
 
-import { PrefetchRoutes } from "@/components/prefetch-routes";
+import { NavigationEffects } from "@/components/navigation-effects";
 import "./globals.css";
 
 const instrumentSans = Instrument_Sans({
@@ -69,11 +69,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         {/* Route changes animate as one ".page" group (see globals.css), except
-            navigations started from partway down a page (see prefetch-routes). */}
+            navigations started from partway down a page (see navigation-effects). */}
         <ViewTransition default={{ "from-scrolled": "none", default: "page" }}>
           {children}
         </ViewTransition>
-        <PrefetchRoutes />
+        <NavigationEffects />
       </body>
     </html>
   );

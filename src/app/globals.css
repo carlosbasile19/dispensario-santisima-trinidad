@@ -81,7 +81,7 @@ body {
 @keyframes reveal {
   from {
     opacity: 0;
-    transform: translate3d(0, 28px, 0);
+    transform: translate3d(0, 16px, 0);
   }
   to {
     opacity: 1;
@@ -127,6 +127,23 @@ body {
   }
   .hero-media > :nth-child(2) { animation-delay: 0.32s; }
   .hero-media > :nth-child(3) { animation-delay: 0.44s; }
+
+  /* Entrances play only on the first page a visitor lands on. After a
+     navigation (navigation-effects.tsx sets data-navigated), pages simply
+     appear, so moving around the site stays calm. */
+  html[data-navigated] .hero-stagger > *,
+  html[data-navigated] .hero-media > *,
+  html[data-navigated] .hero-media:is(img) {
+    animation: none;
+  }
+
+  /* Mobile menu (site-header.tsx) */
+  dialog.site-menu[open] {
+    animation: menu-in 0.32s var(--ease-out-soft) both;
+  }
+  dialog.site-menu::backdrop {
+    animation: fade-in 0.32s ease both;
+  }
 
   /* Sections fade up as they scroll into view (scroll-driven, no JS).
      Browsers without scroll timelines simply show the content. */
@@ -175,10 +192,10 @@ body {
     animation: none; /* the .page group carries the motion */
   }
   ::view-transition-old(.page) {
-    animation: 0.18s ease-out both page-out;
+    animation: 0.16s ease-out both page-out;
   }
   ::view-transition-new(.page) {
-    animation: 0.42s var(--ease-out-soft) both page-in;
+    animation: 0.28s ease-out both page-in;
   }
 }
 
@@ -190,6 +207,21 @@ body {
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translate3d(0, 10px, 0);
   }
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -12px, 0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The page behind the open mobile menu does not scroll. */
+html:has(dialog.site-menu[open]) {
+  overflow: hidden;
 }

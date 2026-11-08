@@ -13,7 +13,8 @@ import { Eyebrow, PrimaryButton, container, serif } from "@/components/site";
 //   dividido     – the design's split variant: copy left, tall portrait right
 export type HeroVariant = "centrado" | "protagonista" | "dividido";
 
-const DOCTOR_ALT = "Director médico del Centro Médico Integral Santísima Trinidad";
+const DOCTOR_NAME = "Dr. José Morales";
+const DOCTOR_ALT = `${DOCTOR_NAME}, director médico del Centro Médico Integral Santísima Trinidad`;
 
 export function HomeHero({ variant }: { variant: HeroVariant }) {
   if (variant === "dividido") return <HeroSplit />;
@@ -68,8 +69,8 @@ function HeroCopy({ align }: { align: "center" | "left" }) {
 function DoctorTag() {
   return (
     <figcaption className="absolute bottom-3 left-3 rounded-md bg-cream/90 px-4 py-3 shadow-[0_8px_24px_rgba(27,42,85,0.12)] backdrop-blur-sm sm:bottom-4 sm:left-4">
-      <span className="block font-serif text-[19px] leading-tight text-navy">Director médico</span>
-      <span className="mt-0.5 block text-[11px] tracking-[0.14em] text-teal">SANTÍSIMA TRINIDAD</span>
+      <span className="block font-serif text-[19px] leading-tight text-navy">{DOCTOR_NAME}</span>
+      <span className="mt-0.5 block text-[11px] tracking-[0.14em] text-teal">DIRECTOR MÉDICO</span>
     </figcaption>
   );
 }
