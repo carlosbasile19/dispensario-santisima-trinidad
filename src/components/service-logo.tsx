@@ -3,15 +3,17 @@ import { Great_Vibes } from "next/font/google";
 
 import mark from "../../public/images/brand/mark.png";
 
-// Odontología sub-brand. Same structure as the clinic logo: the dove, cross and
-// open hands mark, the name in teal script, a rule (here with a small tooth in
-// its centre) and the parent name in spaced capitals.
+// Service sub-brands (Odontología, Bioanálisis). Same structure as the clinic
+// logo: the dove, cross and open hands mark, the name in teal script, a rule
+// with a small service symbol in its centre, and the parent name in capitals.
 
 const script = Great_Vibes({ subsets: ["latin"], weight: "400" });
 
 const LOGO_TEAL = "#2fa9ae"; // script colour from the original logo
 
-function Tooth({ className = "" }: { className?: string }) {
+type GlyphProps = { className?: string };
+
+function Tooth({ className = "" }: GlyphProps) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -27,13 +29,41 @@ function Tooth({ className = "" }: { className?: string }) {
   );
 }
 
-export function OdontologiaLogo({
+function TestTube({ className = "" }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 2.8h6M10 2.8v13.7a2 2 0 0 0 4 0V2.8M10 10.5h4" />
+      <path d="M5.5 21.2h13" />
+    </svg>
+  );
+}
+
+type Size = "sm" | "md" | "lg";
+type LogoProps = { size?: Size; className?: string };
+
+export function OdontologiaLogo(props: LogoProps) {
+  return <ServiceLogo name="Odontología" Glyph={Tooth} {...props} />;
+}
+
+export function BioanalisisLogo(props: LogoProps) {
+  return <ServiceLogo name="Bioanálisis" Glyph={TestTube} {...props} />;
+}
+
+function ServiceLogo({
+  name,
+  Glyph,
   size = "md",
   className = "",
-}: {
-  size?: "sm" | "md" | "lg";
-  className?: string;
-}) {
+}: LogoProps & { name: string; Glyph: (p: GlyphProps) => React.JSX.Element }) {
   const s = {
     sm: { mark: "h-14", name: "text-[34px]", caps: "text-[8px]", tooth: "size-3.5", gap: "gap-1" },
     md: { mark: "h-24", name: "text-[52px]", caps: "text-[10px]", tooth: "size-4", gap: "gap-1.5" },
@@ -43,7 +73,7 @@ export function OdontologiaLogo({
   return (
     <div
       role="img"
-      aria-label="Odontología · Santísima Trinidad, Centro Médico Integral"
+      aria-label={`${name} · Santísima Trinidad, Centro Médico Integral`}
       className={`inline-flex flex-col items-center ${s.gap} ${className}`}
     >
       <Image src={mark} alt="" className={`${s.mark} w-auto`} sizes="160px" />
@@ -51,11 +81,11 @@ export function OdontologiaLogo({
         className={`${script.className} ${s.name} leading-[1.05]`}
         style={{ color: LOGO_TEAL }}
       >
-        Odontología
+        {name}
       </span>
       <span className="flex w-full items-center gap-2" style={{ color: LOGO_TEAL }}>
         <span className="h-px flex-1 bg-[#7c93a6]" />
-        <Tooth className={s.tooth} />
+        <Glyph className={s.tooth} />
         <span className="h-px flex-1 bg-[#7c93a6]" />
       </span>
       <span className={`${s.caps} tracking-[0.22em] whitespace-nowrap text-[#3d4a63]`}>

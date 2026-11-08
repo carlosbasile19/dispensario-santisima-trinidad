@@ -5,7 +5,7 @@ import Link from "next/link";
 import checkupPhoto from "../../../public/images/odontologia/checkup.jpg";
 import heroPhoto from "../../../public/images/odontologia/hero.jpg";
 import casheaLogo from "../../../public/images/cashea/logo.png";
-import { OdontologiaLogo } from "@/components/odontologia-logo";
+import { OdontologiaLogo } from "@/components/service-logo";
 import {
   Eyebrow,
   PHONE_DISPLAY,

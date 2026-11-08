@@ -14,8 +14,7 @@ import casheaLogo from "../../public/images/cashea/logo.png";
 
 import Link from "next/link";
 
-import odontoPhoto from "../../public/images/odontologia/checkup.jpg";
-import { OdontologiaLogo } from "@/components/odontologia-logo";
+import { BioanalisisLogo, OdontologiaLogo } from "@/components/service-logo";
 import {
   Eyebrow,
   MAPS_URL,
@@ -133,7 +132,7 @@ export default function Home() {
         <Hero />
         <Highlights />
         <Services />
-        <Dental />
+        <Modules />
         <Checkup />
         <Cashea />
         <OngoingCare />
@@ -256,37 +255,47 @@ function Services() {
   );
 }
 
-function Dental() {
+const modules = [
+  {
+    href: "/odontologia",
+    Logo: OdontologiaLogo,
+    title: "Ahora también cuidamos",
+    accent: "tu sonrisa.",
+    text: "Evaluación, limpieza, resinas, extracciones, endodoncia y odontopediatría, con el mismo trato.",
+    cta: "Conoce Odontología",
+  },
+  {
+    href: "/bioanalisis",
+    Logo: BioanalisisLogo,
+    title: "Tus exámenes,",
+    accent: "aquí mismo.",
+    text: "Hematología, química sanguínea, perfil lipídico y examen de orina, procesados en el centro.",
+    cta: "Conoce Bioanálisis",
+  },
+];
+
+function Modules() {
   return (
-    <section id="odontologia" className={`${container} scroll-mt-6 pt-24`}>
-      <div className="grid grid-cols-1 overflow-hidden rounded-md border border-line bg-white md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="flex flex-col items-start gap-6 p-6 sm:p-12">
-          <OdontologiaLogo size="sm" />
-          <h2 className={`${serif} text-[clamp(32px,3.4vw,46px)] leading-[1.08]`}>
-            Ahora también cuidamos <i className="text-teal">tu sonrisa.</i>
-          </h2>
-          <p className="max-w-[460px] text-[17px] leading-relaxed text-pretty text-ink">
-            Evaluación, limpieza, resinas, extracciones, endodoncia y odontopediatría, en el
-            mismo centro y con el mismo trato.
-          </p>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+    <section id="especialidades" className={`${container} scroll-mt-6 pt-24`}>
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        {modules.map(({ href, Logo, title, accent, text, cta }) => (
+          <div
+            key={href}
+            className="flex flex-col items-start gap-6 rounded-md border border-line bg-white p-6 sm:p-10"
+          >
+            <Logo size="sm" />
+            <h2 className={`${serif} text-[clamp(30px,3vw,40px)] leading-[1.08]`}>
+              {title} <i className="text-teal">{accent}</i>
+            </h2>
+            <p className="max-w-[440px] text-[16px] leading-relaxed text-pretty text-ink">{text}</p>
             <Link
-              href="/odontologia"
-              className="rounded-lg bg-navy px-6 py-[15px] text-base text-white transition-colors hover:bg-teal"
+              href={href}
+              className="mt-auto rounded-lg bg-navy px-6 py-[15px] text-base text-white transition-colors hover:bg-teal"
             >
-              Conoce Odontología
+              {cta}
             </Link>
-            <PrimaryButton className="!bg-transparent !px-0 !text-teal hover:!text-navy">
-              Agenda tu evaluación →
-            </PrimaryButton>
           </div>
-        </div>
-        <Image
-          src={odontoPhoto}
-          alt="Paciente durante una revisión dental"
-          className="h-full min-h-[280px] w-full object-cover"
-          sizes="(min-width: 768px) 45vw, 100vw"
-        />
+        ))}
       </div>
     </section>
   );

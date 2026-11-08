@@ -46,8 +46,8 @@ export function SiteHeader() {
       <nav className="hidden flex-wrap gap-7 text-[15px] md:flex">
         <Link href="/#servicios" className="text-navy hover:text-teal">Servicios</Link>
         <Link href="/odontologia" className="text-navy hover:text-teal">Odontología</Link>
+        <Link href="/bioanalisis" className="text-navy hover:text-teal">Bioanálisis</Link>
         <Link href="/#chequeo" className="text-navy hover:text-teal">Chequeo preventivo</Link>
-        <Link href="/#visita" className="text-navy hover:text-teal">Tu visita</Link>
       </nav>
       <Link href="/" aria-label="Inicio">
         <Image

@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="116" fill="#1b2a55"/>
-  <!-- two open hands, raised like in the logo -->
-  <path d="M244 420C188 404 112 336 100 214C174 230 236 300 244 420Z" fill="#7fd3d6"/>
-  <path d="M268 420C324 404 400 336 412 214C338 230 276 300 268 420Z" fill="#7fd3d6"/>
-  <!-- cross held between them -->
-  <path d="M256 84V318M208 146H304" fill="none" stroke="#faf8f4" stroke-width="30" stroke-linecap="round"/>
-</svg>
