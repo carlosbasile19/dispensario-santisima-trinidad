@@ -32,7 +32,7 @@ const siteUrl =
 
 const title = "Centro Médico Integral Santísima Trinidad · Ciudad Bolívar";
 const description =
-  "Consulta médica, ecosonograma, electrocardiograma y laboratorio clínico bajo un mismo techo en Ciudad Bolívar. Agenda por WhatsApp.";
+  "Medicina general, odontología, bioanálisis, ecosonograma y electrocardiograma bajo un mismo techo en Ciudad Bolívar. Agenda por WhatsApp.";
 
 // Icons and share images come from the file conventions in this folder:
 // icon.svg, apple-icon.png, opengraph-image.png, twitter-image.png (sources in assets/brand/).
