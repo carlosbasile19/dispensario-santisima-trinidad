@@ -184,7 +184,7 @@ function Services() {
         </p>
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-5">
-        {services.map((s, i) => (
+        {services.map((s) => (
           <article key={s.title} className="zoom-on-hover flex flex-col gap-3.5">
             <Image
               src={s.image}
@@ -192,8 +192,7 @@ function Services() {
               className="aspect-[4/5] w-full rounded-md object-cover"
               sizes="(min-width: 1280px) 300px, (min-width: 768px) 45vw, 100vw"
             />
-            <div className="font-mono text-[13px] text-stone">{String(i + 1).padStart(2, "0")}</div>
-            <h3 className="font-serif text-[28px] leading-[1.1]">{s.title}</h3>
+            <h3 className="mt-1.5 font-serif text-[28px] leading-[1.1]">{s.title}</h3>
             <p className="text-[15px] leading-normal text-muted">{s.text}</p>
           </article>
         ))}
