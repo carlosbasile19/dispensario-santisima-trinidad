@@ -152,7 +152,7 @@ function Hero() {
   const photo = "h-[260px] w-full rounded-md object-cover sm:h-[340px]";
   return (
     <section className={`${container} pt-10`}>
-      <div className="mx-auto max-w-[1000px] text-center">
+      <div className="hero-stagger mx-auto max-w-[1000px] text-center">
         <Eyebrow>Centro Médico Integral · Ciudad Bolívar</Eyebrow>
         <h1
           className={`${serif} mt-[22px] text-[clamp(44px,8vw,104px)] leading-none tracking-[-0.025em] text-balance`}
@@ -183,7 +183,7 @@ function Hero() {
           </a>
         </div>
       </div>
-      <div className="mt-16 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="hero-media mt-16 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
         <Image src={lab} alt="Muestras de laboratorio" className={`${photo} hidden md:block`} sizes="(min-width: 768px) 30vw, 100vw" />
         <Image src={hero} alt="Médica en consulta con paciente" priority className={photo} sizes="(min-width: 768px) 45vw, 100vw" />
         <Image src={eco} alt="Ecosonograma" className={`${photo} hidden md:block`} sizes="(min-width: 768px) 30vw, 100vw" />
@@ -238,7 +238,7 @@ function Services() {
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-5">
         {services.map((s, i) => (
-          <article key={s.title} className="flex flex-col gap-3.5">
+          <article key={s.title} className="zoom-on-hover flex flex-col gap-3.5">
             <Image
               src={s.image}
               alt={s.alt}

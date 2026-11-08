@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { ViewTransition, type ReactNode } from "react";
 
 import logo from "../../public/images/logo.jpg";
 
@@ -39,7 +39,9 @@ export function PrimaryButton({ children, className = "" }: { children: ReactNod
 }
 
 export function SiteHeader() {
+  // Named so it stays put while the page content transitions underneath.
   return (
+    <ViewTransition name="site-header" default="none">
     <header
       className={`${container} grid grid-cols-[1fr_auto] items-center gap-6 py-5 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]`}
     >
@@ -72,6 +74,7 @@ export function SiteHeader() {
         </a>
       </div>
     </header>
+    </ViewTransition>
   );
 }
 

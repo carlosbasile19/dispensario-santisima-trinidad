@@ -96,7 +96,7 @@ function Hero() {
     <section
       className={`${container} grid grid-cols-1 items-center gap-10 pt-8 md:grid-cols-2 md:gap-14`}
     >
-      <div className="flex flex-col items-start gap-7">
+      <div className="hero-stagger flex flex-col items-start gap-7">
         <OdontologiaLogo size="md" />
         <h1
           className={`${serif} text-[clamp(44px,6vw,80px)] leading-none tracking-[-0.025em] text-balance`}
@@ -121,7 +121,7 @@ function Hero() {
         src={heroPhoto}
         alt="Odontóloga atendiendo a un paciente en consulta"
         priority
-        className="h-[360px] w-full rounded-md object-cover object-top md:h-[620px]"
+        className="hero-media h-[360px] w-full rounded-md object-cover object-top md:h-[620px]"
         sizes="(min-width: 768px) 50vw, 100vw"
       />
     </section>

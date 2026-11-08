@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
+import { ViewTransition } from "react";
+
+import { PrefetchRoutes } from "@/components/prefetch-routes";
 import "./globals.css";
 
 const instrumentSans = Instrument_Sans({
@@ -62,7 +65,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       className={`${instrumentSans.variable} ${newsreader.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {/* Route changes animate as one ".page" group (see globals.css). */}
+        <ViewTransition default="page">{children}</ViewTransition>
+        <PrefetchRoutes />
+      </body>
     </html>
   );
 }
