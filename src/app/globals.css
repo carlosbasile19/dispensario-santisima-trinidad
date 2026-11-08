@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
+/* Brand palette from the Claude Design landing ("Landing Santísima Trinidad"). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8f4;
+  --foreground: #1b2a55;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-navy: #1b2a55;
+  --color-teal: #1e7e86;
+  --color-mint: #7fd3d6;
+  --color-cream: #faf8f4;
+  --color-sand: #f1ede4;
+  --color-line: #d9d3c6;
+  --color-outline: #c9c4b8;
+  --color-ink: #4a4f5c;
+  --color-muted: #5a5e69;
+  --color-stone: #8a8475;
+  --color-coral: #d9534f;
+  --color-mist: #b4bfd6;
+  --color-frost: #e9eef8;
+
+  --font-sans: var(--font-instrument-sans);
+  --font-serif: var(--font-newsreader);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
