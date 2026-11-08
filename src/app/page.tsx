@@ -4,8 +4,6 @@ import consult from "../../public/images/consult.jpg";
 import consult2 from "../../public/images/consult2.jpg";
 import ecg from "../../public/images/ecg.jpg";
 import eco from "../../public/images/eco.jpg";
-import hero from "../../public/images/hero.jpg";
-import lab from "../../public/images/lab.jpg";
 import lab2 from "../../public/images/lab2.jpg";
 import senior from "../../public/images/senior.jpg";
 import vials from "../../public/images/vials.jpg";
@@ -14,6 +12,7 @@ import casheaLogo from "../../public/images/cashea/logo.png";
 
 import Link from "next/link";
 
+import { HomeHero } from "@/components/home-hero";
 import { BioanalisisLogo, OdontologiaLogo } from "@/components/service-logo";
 import {
   Eyebrow,
@@ -129,7 +128,7 @@ export default function Home() {
       <SiteHeader />
 
       <main>
-        <Hero />
+        <HomeHero variant="dividido" />
         <Highlights />
         <Services />
         <Modules />
@@ -147,50 +146,6 @@ export default function Home() {
 }
 
 /* ---------- sections ---------- */
-
-function Hero() {
-  const photo = "h-[260px] w-full rounded-md object-cover sm:h-[340px]";
-  return (
-    <section className={`${container} pt-10`}>
-      <div className="hero-stagger mx-auto max-w-[1000px] text-center">
-        <Eyebrow>Centro Médico Integral · Ciudad Bolívar</Eyebrow>
-        <h1
-          className={`${serif} mt-[22px] text-[clamp(44px,8vw,104px)] leading-none tracking-[-0.025em] text-balance`}
-        >
-          Cuida tu salud hoy, para abrazar <i className="text-teal">el mañana.</i>
-        </h1>
-        <p className="mx-auto mt-7 max-w-[600px] text-[19px] leading-[1.55] text-pretty text-ink">
-          Un centro médico donde te atienden por tu nombre. Consulta, imagen y laboratorio
-          bajo un mismo techo, para que cuidarte sea sencillo.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <PrimaryButton>Agenda por WhatsApp</PrimaryButton>
-          <a
-            href="#servicios"
-            className="rounded-lg border border-outline px-6 py-[15px] text-base text-navy hover:border-navy"
-          >
-            Conoce los servicios
-          </a>
-        </div>
-        <div className="mt-[26px]">
-          <a
-            href="#cashea"
-            className="inline-flex flex-wrap items-center justify-center gap-2.5 text-sm text-ink hover:text-navy"
-          >
-            <span>Aceptamos</span>
-            <Image src={casheaLogo} alt="Cashea" className="h-6 w-auto" sizes="97px" />
-            <span>· paga en cuotas sin intereses</span>
-          </a>
-        </div>
-      </div>
-      <div className="hero-media mt-16 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
-        <Image src={lab} alt="Muestras de laboratorio" className={`${photo} hidden md:block`} sizes="(min-width: 768px) 30vw, 100vw" />
-        <Image src={hero} alt="Médica en consulta con paciente" priority className={photo} sizes="(min-width: 768px) 45vw, 100vw" />
-        <Image src={eco} alt="Ecosonograma" className={`${photo} hidden md:block`} sizes="(min-width: 768px) 30vw, 100vw" />
-      </div>
-    </section>
-  );
-}
 
 function Highlights() {
   return (
