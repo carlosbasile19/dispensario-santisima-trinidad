@@ -50,7 +50,10 @@ src/
     money.ts                  # exact USD/Bs arithmetic, the same rounding as the database
     data.ts                   # shared reads: agenda, balances, rates, services, professionals
     form-state.ts             # what Server Actions answer, Spanish messages for DB errors
-  components/crm/             # platform UI: sidebar, cards, badges, icons, forms, rate form
+  lib/bcv/                    # reads the BCV rate (bcv.org.ve, DolarAPI mirror) and records it
+  app/api/cron/bcv/           # the daily job that runs it (Vercel Cron, see vercel.json)
+  components/crm/             # platform UI: sidebar, cards, badges, icons, forms, rate form,
+                              # select / date-picker / modal (the platform's pickers and dialogs)
 supabase/
   config.toml                 # local stack config (`supabase start`)
   migrations/                 # source of truth for the schema
@@ -76,8 +79,18 @@ supabase/
 - **Patients** are registered by the front desk (`staff`) and administrators, from Pacientes or straight from "Nueva cita". Doctors see only patients they have a service with.
 - **Appointments** are one visit of one patient. A visit carries one or more services (`appointment_items`), each with its own professional (a member with the `doctor` or `director` role) and price, so one visit can have a consultation, a lab test and a dental cleaning with three different people. Doctors see the visits where they have a service.
 - **Prices** are the centre's, in US dollars, set by administrators in Contabilidad › Tarifas (`services`). A booked service copies that price (`list_price_usd`); the front desk may charge another one (`price_usd`) and the original stays on record. Changing a price affects new bookings only.
-- **BCV rate.** One rate per day (`exchange_rates`, Bs per dollar, 8 decimals), entered from bcv.org.ve. The front desk sets today's; administrators any day's (`set_exchange_rate`). There is no automatic fetch.
-- **Payments** are taken today, at today's rate, in the currency received: cash or Zelle in dollars, pago móvil, punto, transferencia or cash in bolívares. The database derives the other currency (`payments_apply_rate`) and refuses a payment above the balance. Correcting a day's rate recalculates every payment of that day, so a day never mixes two rates. Payments are never edited: administrators void them with a reason (`void_payment`). Balances are in dollars (`appointment_balances`).
+- **BCV rate.** One rate per day (`exchange_rates`, Bs per dollar, 8 decimals), fetched automatically:
+  - The BCV publishes each afternoon the rate of its next business day, its *fecha valor*: Friday's publication is Monday's rate. Weekends and holidays have no rate of their own and use the last fecha valor before them.
+  - `lib/bcv/sync.ts` reads bcv.org.ve and records the published day and today, plus tomorrow when it is a Saturday or Sunday (`record_official_rate`, service role only). If the BCV site fails it uses the [DolarAPI](https://ve.dolarapi.com) mirror, which keeps the BCV history by fecha valor (`source` = `bcv` or `dolarapi`).
+  - bcv.org.ve serves an incomplete certificate chain, so the missing Sectigo intermediate is bundled in `lib/bcv/sectigo-r36.ts`. TLS verification stays on.
+  - **When it runs.** Vercel Cron calls `/api/cron/bcv` twice a day (`vercel.json`): at 01:10 UTC (about 21:10 in Caracas, after the BCV has published the next day's rate) and at 10:10 UTC (about 06:10, as a safety net before opening). On the Hobby plan each job fires at some point within its hour. A page that needs today's rate also fetches it on the spot when it is missing, and the front desk has a "Traer la tasa del BCV" button.
+  - A rate typed by hand (`set_exchange_rate`: the front desk today's, administrators any day's) is never replaced by the job. The official figure is kept beside it (`official_bs_per_usd`) and the screens point out any difference.
+  - The route needs `CRON_SECRET` (Vercel sends it as a bearer token) and `SUPABASE_SECRET_KEY`.
+- **Payments** are taken today, at today's rate, in the currency received: cash or Zelle in dollars, pago móvil, punto, transferencia or cash in bolívares. The database derives the other currency (`payments_apply_rate`, `payment_method_currency`) and refuses a payment above the balance. Correcting a day's rate recalculates every payment of that day, so a day never mixes two rates. Payments are never edited: administrators void them with a reason (`void_payment`). Balances are in dollars (`appointment_balances`).
+- **Cashea** (buy now, pay later). The patient pays an *inicial* in the centre and Cashea finances the rest, which the patient pays in cuotas that Cashea guarantees. The front desk enters the Cashea order number, the order total in dollars and how the inicial was paid.
+  - `record_cashea_payment` records both parts in one transaction. The inicial is a normal payment with its own method. The financed rest is a payment with method `cashea`, in dollars, which settles the visit.
+  - Both lines carry the order number (`cashea_order`).
+  - Contabilidad shows the financed amount apart from money actually received, since it reaches the centre later in cuotas.
 - The clinic's calendar is America/Caracas time, in the database (`clinic_today()`, `appointments.starts_on`) and on the screens (`lib/crm/clinic.ts`).
 
 ## Database rules
@@ -93,7 +106,7 @@ supabase/
 | | Supabase | Vercel |
 | --- | --- | --- |
 | Project | `DST` (`xnbinvflvurdpvbctxfh`, eu-central-1) | `dispensario-santisima-trinidad` |
-| Env vars | — | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `SUPABASE_SECRET_KEY` (server only) |
+| Env vars | — | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `SUPABASE_SECRET_KEY` and `CRON_SECRET` (server only) |
 
 Pushes to `main` deploy to production. Other branches and PRs get preview deployments.
 

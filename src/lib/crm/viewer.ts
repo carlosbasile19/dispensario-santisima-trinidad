@@ -13,6 +13,8 @@ export type Viewer = {
   name: string;
   firstName: string;
   email: string | null;
+  /** Public URL of the member's profile photo, if they uploaded one. */
+  avatarUrl: string | null;
 };
 
 /**
@@ -30,5 +32,13 @@ export const getViewer = cache(async (): Promise<Viewer> => {
 
   // "Dra. Lucía Méndez" is greeted as "Lucía".
   const firstName = name.replace(/^(Dr|Dra|Lcda|Lcdo|Lic)\.\s+/i, "").split(" ")[0];
-  return { id: user.id, role, permissions: can(role), name, firstName, email };
+  return {
+    id: user.id,
+    role,
+    permissions: can(role),
+    name,
+    firstName,
+    email,
+    avatarUrl: profile?.avatar_url ?? null,
+  };
 });

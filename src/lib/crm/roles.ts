@@ -2,6 +2,8 @@
 // The sidebar, every page guard and the "Roles y permisos" matrix all read
 // from here, so a change to a role is made in one place.
 
+import type { IconName } from "@/components/crm/icons";
+
 export const ROLES = ["doctor", "director", "staff", "admin"] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -101,6 +103,18 @@ export const ROLE_INFO: Record<
 };
 
 export const can = (role: Role) => ROLE_INFO[role].permissions;
+
+/** Icon of each role in the role pickers. */
+export const ROLE_ICON: Record<Role, IconName> = {
+  doctor: "stethoscope",
+  director: "star",
+  staff: "calendar",
+  admin: "shield",
+};
+
+/** The roles as picker options, each with what it can do. */
+export const roleOptions = () =>
+  ROLES.map((role) => ({ value: role, label: ROLE_INFO[role].label, description: ROLE_INFO[role].description, icon: ROLE_ICON[role] }));
 
 export type NavIcon = "home" | "calendar" | "patients" | "ledger" | "building" | "team" | "key";
 export type NavItem = { href: string; label: string; icon: NavIcon };

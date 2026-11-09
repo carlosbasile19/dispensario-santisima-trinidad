@@ -11,6 +11,9 @@ const BY_HINT: Record<string, string> = {
   exceeds_balance: "El monto es mayor que el saldo pendiente de la cita.",
   inactive_service: "Uno de los servicios ya no se ofrece. Elige otro.",
   invalid_professional: "El profesional asignado debe tener perfil de médico o director médico.",
+  missing_cashea_order: "Escribe el número de orden de Cashea.",
+  invalid_initial_method: "Elige cómo pagó la inicial.",
+  cashea_nothing_financed: "La inicial cubre toda la orden: Cashea no financia nada. Regístrala como un cobro normal.",
 };
 
 /** A message in Spanish for a database error, so members never see raw SQL errors. */

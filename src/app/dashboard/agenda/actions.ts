@@ -3,10 +3,12 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { syncBcvRates } from "@/lib/bcv/sync";
 import {
   DURATIONS,
   PAYMENT_METHODS,
   clinicToday,
+  formatDay,
   isAppointmentStatus,
   isIsoDate,
   isPaymentMethod,
@@ -196,7 +198,7 @@ export async function removeAppointmentItem(_prev: FormState, formData: FormData
   const { error } = await supabase.from("appointment_items").delete().eq("id", id);
   if (error) return { error: dbErrorMessage(error) };
   refresh();
-  return undefined;
+  return { message: "Servicio quitado." };
 }
 
 /**
@@ -236,6 +238,8 @@ export async function recordPayment(_prev: FormState, formData: FormData): Promi
   if (!received || received <= 0n) return { error: "Escribe el monto recibido." };
   const reference = String(formData.get("reference") ?? "").trim().slice(0, 60) || null;
 
+  if (PAYMENT_METHODS[method].financed) return { error: "Registra Cashea con su número de orden y la inicial." };
+
   const value = amount(received);
   // paid_on, currency, rate and the other currency's amount are set by the
   // payments_apply_rate trigger; members cannot write them.
@@ -250,4 +254,79 @@ export async function recordPayment(_prev: FormState, formData: FormData): Promi
   if (error) return { error: dbErrorMessage(error, "No se pudo registrar el cobro.") };
   refresh();
   return { message: "Cobro registrado." };
+}
+
+/** "#ab 77-1" → "AB77-1": what the database keeps of a Cashea order number. */
+const casheaOrder = (value: FormDataEntryValue | null) =>
+  String(value ?? "")
+    .toUpperCase()
+    .replace(/[^0-9A-Z-]/g, "");
+
+/**
+ * Records a Cashea sale: the inicial the patient paid in the centre (with
+ * its own method, in its currency) and the rest, financed by Cashea, in
+ * dollars. Both in one transaction (record_cashea_payment), both tagged
+ * with the order number.
+ */
+export async function recordCasheaPayment(_prev: FormState, formData: FormData): Promise<FormState> {
+  const viewer = await getViewer();
+  if (!viewer.permissions.collectPayments) return { error: NO_PAYMENTS };
+
+  const appointment = formData.get("appointment");
+  const order = casheaOrder(formData.get("cashea_order"));
+  const total = parseCents(String(formData.get("order_total") ?? ""));
+  const initialMethod = formData.get("initial_method");
+  const initialText = String(formData.get("initial_amount") ?? "").trim();
+  const initial = initialText ? parseCents(initialText) : 0n;
+  if (!isUuid(appointment)) return { error: "Cita no válida." };
+  if (order.length < 3 || order.length > 40) return { error: "Escribe el número de orden de Cashea." };
+  if (!total || total <= 0n) return { error: "Escribe el total de la orden en dólares." };
+  if (initial === null) return { error: "Escribe la inicial con hasta 2 decimales, o déjala vacía si no hubo." };
+  if (initial > 0n && (!isPaymentMethod(initialMethod) || PAYMENT_METHODS[initialMethod].financed)) {
+    return { error: "Elige cómo pagó la inicial." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("record_cashea_payment", {
+    appointment,
+    order_number: order,
+    order_total_usd: amount(total),
+    ...(initial > 0n && isPaymentMethod(initialMethod)
+      ? {
+          initial_method: initialMethod,
+          initial_amount: amount(initial),
+          initial_reference: String(formData.get("initial_reference") ?? "").trim().slice(0, 60),
+        }
+      : {}),
+  });
+  if (error) return { error: dbErrorMessage(error, "No se pudo registrar la venta Cashea.") };
+  refresh();
+  return { message: `Venta Cashea registrada (orden ${order}).` };
+}
+
+/**
+ * Fetches the BCV rate now (bcv.org.ve, or its mirror) instead of waiting
+ * for the scheduled job. For the front desk and Contabilidad.
+ */
+export async function fetchBcvRate(): Promise<FormState> {
+  const viewer = await getViewer();
+  if (!viewer.permissions.collectPayments && !viewer.permissions.accounting) return { error: NO_PAYMENTS };
+
+  const report = await syncBcvRates();
+  const today = report.recorded.find((r) => r.day === report.today);
+  if (!report.ok || !today) {
+    return {
+      error: report.published
+        ? "El BCV respondió, pero no se pudo guardar la tasa. Inténtalo de nuevo o escríbela a mano."
+        : "No se pudo consultar el BCV ni su espejo. Inténtalo en unos minutos o escribe la tasa a mano.",
+    };
+  }
+  refresh();
+  if (today.result === "kept_manual") {
+    return { message: `El BCV publica Bs. ${today.rate} para hoy; se mantiene la tasa cargada a mano. Corrígela si hace falta.` };
+  }
+  const next = report.published && report.published.day > report.today ? report.published : null;
+  return {
+    message: `Tasa BCV de hoy: Bs. ${today.rate}.${next ? ` Ya está publicada la del ${formatDay(next.day, "short")}: Bs. ${next.rate}.` : ""}`,
+  };
 }

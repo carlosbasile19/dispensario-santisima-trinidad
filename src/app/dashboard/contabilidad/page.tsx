@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Form from "next/form";
 import Link from "next/link";
 import { Suspense, cache } from "react";
 
+import { DatePicker } from "@/components/crm/date-picker";
 import { Icon } from "@/components/crm/icons";
 import { RateForm } from "@/components/crm/rate-form";
 import {
@@ -14,8 +16,8 @@ import {
   PageHeader,
   RowsSkeleton,
   Skeleton,
-  StatCard,
-  StatCardsSkeleton,
+  StatGrid,
+  StatGridSkeleton,
   td,
   th,
 } from "@/components/crm/ui";
@@ -31,7 +33,7 @@ import {
   param,
   patientName,
 } from "@/lib/crm/clinic";
-import { getRate, getRecentRates } from "@/lib/crm/data";
+import { getRate, getRecentRates, getTodayRate } from "@/lib/crm/data";
 import { formatBs, formatRate, formatUsd, sumCents } from "@/lib/crm/money";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -45,7 +47,13 @@ type SearchParams = PageProps<"/dashboard/contabilidad">["searchParams"];
 const navButton =
   "inline-flex h-10 items-center justify-center rounded-lg border border-outline bg-white px-3 text-sm font-medium text-navy hover:border-navy";
 
-const TOTALS = ["Total del día", "Recibido en dólares", "Recibido en bolívares", "Tasa BCV del día"] as const;
+const TOTALS = [
+  "Total cobrado",
+  "Recibido en dólares",
+  "Recibido en bolívares",
+  "Financiado con Cashea",
+  "Tasa BCV del día",
+] as const;
 
 // Contabilidad (administrators only): a day's payments with their BCV rate
 // and totals in both currencies, the rate of any day, and what patients
@@ -68,11 +76,9 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
         <DayBar searchParams={searchParams} />
       </Suspense>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Suspense fallback={<StatCardsSkeleton labels={TOTALS} />}>
-          <DayTotals searchParams={searchParams} />
-        </Suspense>
-      </div>
+      <Suspense fallback={<StatGridSkeleton labels={TOTALS} />}>
+        <DayTotals searchParams={searchParams} />
+      </Suspense>
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <Card>
@@ -131,13 +137,16 @@ async function readDay(searchParams: SearchParams) {
   return { today, day: isIsoDate(requested) ? requested : today };
 }
 
+/** The day's rate; today's is fetched from the BCV when it is missing (see getTodayRate). */
+const dayRate = (day: string, today: string) => (day === today ? getTodayRate(today) : getRate(day));
+
 /** A day's payments, voided ones included. The totals, the rate card and the table share one read per request. */
 const getPayments = cache(async (day: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("payments")
     .select(
-      "id, method, currency, amount_usd, amount_bs, rate, reference, created_at, voided_at, void_reason, appointment:appointments(id, patient:patients(first_name, last_name)), receiver:profiles!payments_received_by_fkey(full_name, email)",
+      "id, method, currency, amount_usd, amount_bs, rate, reference, cashea_order, created_at, voided_at, void_reason, appointment:appointments(id, patient:patients(first_name, last_name)), receiver:profiles!payments_received_by_fkey(full_name, email)",
     )
     .eq("paid_on", day)
     .order("created_at");
@@ -158,46 +167,66 @@ async function DayBar({ searchParams }: { searchParams: SearchParams }) {
         {formatDay(day)}
         {day === today && <span className="ml-2 text-[13px] font-normal text-teal">Hoy</span>}
       </h2>
-      <form action="/dashboard/contabilidad" className="flex gap-2">
-        <input type="date" name="fecha" defaultValue={day} aria-label="Ir al día" className="h-10 rounded-lg border border-outline bg-white px-3 text-sm" />
-        <button type="submit" className={navButton}>
-          Ver
-        </button>
-      </form>
+      <Form action="/dashboard/contabilidad" className="flex gap-2">
+        <DatePicker name="fecha" defaultValue={day} aria-label="Ir al día" submitOnChange className="w-[200px]" />
+        {day !== today && (
+          <Link href="/dashboard/contabilidad" className={navButton}>
+            Hoy
+          </Link>
+        )}
+      </Form>
     </div>
   );
 }
 
 async function DayTotals({ searchParams }: { searchParams: SearchParams }) {
-  const { day } = await readDay(searchParams);
-  const [payments, rate] = await Promise.all([getPayments(day), getRate(day)]);
+  const { today, day } = await readDay(searchParams);
+  const [payments, rate] = await Promise.all([getPayments(day), dayRate(day, today)]);
   const valid = payments.filter((p) => !p.voided_at);
   const totalUsd = sumCents(valid.map((p) => p.amount_usd));
   const totalBs = sumCents(valid.map((p) => p.amount_bs));
-  const cashUsd = sumCents(valid.filter((p) => p.currency === "USD").map((p) => p.amount_usd));
-  const cashBs = sumCents(valid.filter((p) => p.currency === "VES").map((p) => p.amount_bs));
-  const values: [string, string][] = [
-    [formatUsd(totalUsd), `${formatBs(totalBs)} a tasa BCV`],
-    [formatUsd(cashUsd), "Efectivo y Zelle"],
-    [formatBs(cashBs), "Pago móvil, punto, transferencia y efectivo"],
-    [rate ? `Bs. ${formatRate(rate.bs_per_usd)}` : "Sin cargar", "Bolívares por dólar"],
-  ];
+  const received = valid.filter((p) => !PAYMENT_METHODS[p.method].financed);
+  const cashUsd = sumCents(received.filter((p) => p.currency === "USD").map((p) => p.amount_usd));
+  const cashBs = sumCents(received.filter((p) => p.currency === "VES").map((p) => p.amount_bs));
+  const cashea = valid.filter((p) => PAYMENT_METHODS[p.method].financed);
+  const casheaUsd = sumCents(cashea.map((p) => p.amount_usd));
 
-  return TOTALS.map((label, i) => <StatCard key={label} label={label} value={values[i][0]} hint={values[i][1]} />);
+  return (
+    <StatGrid
+      stats={[
+        { label: TOTALS[0], value: formatUsd(totalUsd), hint: `${formatBs(totalBs)} a tasa BCV` },
+        { label: TOTALS[1], value: formatUsd(cashUsd), hint: "Efectivo y Zelle" },
+        { label: TOTALS[2], value: formatBs(cashBs), hint: "Pago móvil, punto, transferencia y efectivo" },
+        {
+          label: TOTALS[3],
+          value: formatUsd(casheaUsd),
+          hint: cashea.length ? `${cashea.length} ${cashea.length === 1 ? "orden" : "órdenes"} · se cobra en cuotas` : "Sin órdenes este día",
+        },
+        rate
+          ? {
+              label: TOTALS[4],
+              value: `Bs. ${formatRate(rate.bs_per_usd)}`,
+              hint: rate.source === "manual" ? "Cargada a mano" : "Automática, del BCV",
+            }
+          : { label: TOTALS[4], value: "Sin cargar", hint: "Bolívares por dólar", alert: true },
+      ]}
+    />
+  );
 }
 
 async function DayRate({ searchParams }: { searchParams: SearchParams }) {
   const { today, day } = await readDay(searchParams);
-  const [rate, recentRates, payments] = await Promise.all([getRate(day), getRecentRates(today, 10), getPayments(day)]);
+  const [rate, recentRates, payments] = await Promise.all([dayRate(day, today), getRecentRates(today, 10), getPayments(day)]);
   return (
     <>
       <CardHeader title="Tasa BCV" hint={`Del ${formatDay(day, "short")}`} />
       <div className="px-5 py-4">
         <RateForm
           day={day}
-          current={rate?.bs_per_usd ?? null}
+          current={rate}
           suggestion={recentRates.find((r) => r.rate_date < day)?.bs_per_usd ?? null}
           hasPayments={payments.length > 0}
+          canFetch={day === today}
         />
       </div>
     </>
@@ -216,7 +245,14 @@ async function RecentRates({ searchParams }: { searchParams: SearchParams }) {
             href={`/dashboard/contabilidad?fecha=${r.rate_date}`}
             className={`flex justify-between px-5 py-2.5 text-sm hover:bg-cream ${r.rate_date === day ? "font-medium" : ""}`}
           >
-            <span>{formatDay(r.rate_date, "short")}</span>
+            <span className="flex items-center gap-2">
+              {formatDay(r.rate_date, "short")}
+              {r.source !== "manual" ? (
+                <Icon name="bolt" className="size-3.5 text-teal" />
+              ) : (
+                <span className="text-[11px] text-stone">a mano</span>
+              )}
+            </span>
             <span className="font-mono">Bs. {formatRate(r.bs_per_usd)}</span>
           </Link>
         </li>
@@ -280,7 +316,15 @@ async function DayPayments({ searchParams }: { searchParams: SearchParams }) {
                     {voided && <p className="text-[12px] text-[#b03a36]">Anulado: {p.void_reason}</p>}
                   </td>
                   <td className={`${td} ${strike}`}>
-                    {PAYMENT_METHODS[p.method].label}
+                    <span className="flex items-center gap-1.5">
+                      <Icon name={PAYMENT_METHODS[p.method].icon} className="size-3.5 text-teal" />
+                      {PAYMENT_METHODS[p.method].label}
+                    </span>
+                    {p.cashea_order && (
+                      <p className="text-[12px] text-muted">
+                        {PAYMENT_METHODS[p.method].financed ? "Financiado" : "Inicial"} · orden {p.cashea_order}
+                      </p>
+                    )}
                     {p.reference && <p className="text-[12px] text-muted">Ref. {p.reference}</p>}
                   </td>
                   <td className={`${td} text-right font-mono whitespace-nowrap ${strike}`}>
@@ -292,7 +336,16 @@ async function DayPayments({ searchParams }: { searchParams: SearchParams }) {
                   <td className={`${td} text-[13px] text-muted`}>
                     {p.receiver?.full_name?.trim() || p.receiver?.email || "—"}
                   </td>
-                  <td className={td}>{!voided && <VoidPayment paymentId={p.id} />}</td>
+                  <td className={td}>
+                    {!voided && (
+                      <VoidPayment
+                        paymentId={p.id}
+                        summary={`${PAYMENT_METHODS[p.method].label} · ${usd ? formatUsd(p.amount_usd) : formatBs(p.amount_bs)}${
+                          p.appointment?.patient ? ` · ${patientName(p.appointment.patient)}` : ""
+                        }`}
+                      />
+                    )}
+                  </td>
                 </tr>
               );
             })}

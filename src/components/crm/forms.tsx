@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import type { FormAction, FormState } from "@/lib/crm/form-state";
 import { Icon, type IconName } from "./icons";
+import { useModal } from "./modal";
 
 // Form building blocks for the platform. Every mutation is a Server Action
 // that answers a FormState; ActionForm shows its error or confirmation.
@@ -38,12 +39,14 @@ export function FormMessage({ state }: { state: FormState }) {
 }
 
 const Pending = createContext(false);
+const Answer = createContext<FormState>(undefined);
 
 /**
  * A form bound to a Server Action, with its answer shown under the fields.
  * It dispatches the action itself, so React does not clear what was typed
  * when the action answers an error; `resetOnSuccess` clears it after a
- * confirmation. Before hydration it still submits as a plain form.
+ * confirmation. Inside a modal, a confirmation closes the modal and errors
+ * show in its ModalActions row. Before hydration it still submits as a plain form.
  */
 export function ActionForm({
   action,
@@ -57,9 +60,11 @@ export function ActionForm({
   resetOnSuccess?: boolean;
 }) {
   const ref = useRef<HTMLFormElement>(null);
+  const modal = useModal();
   const [state, dispatch, pending] = useActionState<FormState, FormData>(async (previous, formData) => {
     const result = await action(previous, formData);
     if (resetOnSuccess && result?.message) ref.current?.reset();
+    if (modal && result?.message) modal.close();
     return result;
   }, undefined);
 
@@ -75,9 +80,37 @@ export function ActionForm({
       }}
       className={className}
     >
-      <Pending value={pending}>{children}</Pending>
-      <FormMessage state={state} />
+      <Pending value={pending}>
+        <Answer value={state}>{children}</Answer>
+      </Pending>
+      {!modal && <FormMessage state={state} />}
     </form>
+  );
+}
+
+/**
+ * The foot of a form in a modal: the form's error on the left, Cancelar
+ * and the given buttons on the right.
+ */
+export function ModalActions({ children }: { children: ReactNode }) {
+  const modal = useModal();
+  const state = useContext(Answer);
+  return (
+    <div className="-mx-6 mt-6 -mb-6 flex flex-col gap-3 border-t border-line bg-cream/70 px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:rounded-b-2xl sm:pb-4">
+      <div className="min-w-0 flex-1">
+        <FormMessage state={state} />
+      </div>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => modal?.close()}
+          className="h-10 rounded-lg border border-outline bg-white px-4 text-sm font-medium text-navy hover:border-navy"
+        >
+          Cancelar
+        </button>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -85,6 +118,7 @@ const BUTTON = {
   primary: "bg-navy text-white hover:bg-teal",
   secondary: "border border-outline bg-white text-navy hover:border-navy",
   danger: "border border-coral/40 bg-white text-[#b03a36] hover:border-coral",
+  destructive: "bg-[#b03a36] text-white hover:bg-coral",
 } as const;
 
 export function SubmitButton({

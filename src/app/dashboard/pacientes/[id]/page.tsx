@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { AppointmentList } from "@/components/crm/appointment-list";
 import { Icon } from "@/components/crm/icons";
+import { Modal } from "@/components/crm/modal";
 import { Avatar, Card, CardHeader, EmptyState, PageHeader, RowsSkeleton, Skeleton } from "@/components/crm/ui";
 import { UNBILLED_STATUSES, ageOn, clinicToday, formatDay, formatDocument, isUuid, localDay, patientName } from "@/lib/crm/clinic";
 import { getBalances, getPatientAppointments, getProfessionals } from "@/lib/crm/data";
@@ -164,10 +165,18 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
             )}
           </dl>
           {p.manageSchedule && (
-            <details className="border-t border-line">
-              <summary className="cursor-pointer px-5 py-3.5 text-sm font-medium text-teal hover:text-navy">Editar datos</summary>
-              <PatientForm patient={patient} today={today} />
-            </details>
+            <div className="border-t border-line px-5 py-3.5">
+              <Modal
+                trigger="Editar datos"
+                triggerIcon="patients"
+                title="Editar paciente"
+                description={name}
+                icon="patients"
+                size="lg"
+              >
+                <PatientForm patient={patient} today={today} inModal />
+              </Modal>
+            </div>
           )}
         </Card>
       </div>

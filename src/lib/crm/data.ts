@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 
+import { syncTodayOnDemand } from "@/lib/bcv/sync";
 import { createClient } from "@/lib/supabase/server";
 import type { AppointmentStatus, ServiceArea } from "./clinic";
 import type { Role } from "./roles";
@@ -35,15 +36,27 @@ export const getServices = cache(async () => {
 
 export type Service = Awaited<ReturnType<typeof getServices>>[number];
 
-/** The BCV rate of a day, or null if it has not been set. */
-export const getRate = cache(async (day: string) => {
+const RATE_FIELDS = "rate_date, bs_per_usd, updated_at, source, fecha_valor, official_bs_per_usd";
+
+async function readRate(day: string) {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("exchange_rates")
-    .select("rate_date, bs_per_usd, updated_at")
-    .eq("rate_date", day)
-    .maybeSingle();
+  const { data } = await supabase.from("exchange_rates").select(RATE_FIELDS).eq("rate_date", day).maybeSingle();
   return data;
+}
+
+/** The BCV rate of a day, or null if it has not been set. */
+export const getRate = cache(readRate);
+
+export type Rate = NonNullable<Awaited<ReturnType<typeof readRate>>>;
+
+/**
+ * Today's rate. When it is missing (the scheduled job has not run), it is
+ * fetched from the BCV right away, so the front desk does not have to type it.
+ */
+export const getTodayRate = cache(async (today: string) => {
+  const rate = await getRate(today);
+  if (rate || !(await syncTodayOnDemand())) return rate;
+  return readRate(today);
 });
 
 /** The most recent rates up to a day, newest first. */
@@ -51,7 +64,7 @@ export const getRecentRates = cache(async (upTo: string, limit = 10) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("exchange_rates")
-    .select("rate_date, bs_per_usd, updated_at")
+    .select(RATE_FIELDS)
     .lte("rate_date", upTo)
     .order("rate_date", { ascending: false })
     .limit(limit);

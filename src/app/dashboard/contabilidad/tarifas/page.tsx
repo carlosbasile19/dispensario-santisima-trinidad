@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { ActionForm, Field, SubmitButton } from "@/components/crm/forms";
+import { Select } from "@/components/crm/select";
 import { inputClass } from "@/components/crm/styles";
 import { Badge, Card, CardHeader, EmptyState, NoAccess, PageHeader, RowsSkeleton, Skeleton } from "@/components/crm/ui";
-import { AREA_LABEL, SERVICE_AREAS } from "@/lib/crm/clinic";
+import { AREA_ICON, AREA_LABEL, SERVICE_AREAS } from "@/lib/crm/clinic";
 import { getServices } from "@/lib/crm/data";
 import { centsToInput, toCents } from "@/lib/crm/money";
 import { getViewer } from "@/lib/crm/viewer";
@@ -35,13 +36,12 @@ export default async function PriceListPage() {
         <ActionForm action={saveService} resetOnSuccess className="flex flex-col gap-3 px-5 py-5">
           <div className="grid gap-4 sm:grid-cols-[200px_1fr_160px_auto] sm:items-end">
             <Field label="Área">
-              <select name="area" defaultValue="medicina" className={inputClass}>
-                {SERVICE_AREAS.map((area) => (
-                  <option key={area} value={area}>
-                    {AREA_LABEL[area]}
-                  </option>
-                ))}
-              </select>
+              <Select
+                name="area"
+                defaultValue="medicina"
+                searchable={false}
+                options={SERVICE_AREAS.map((area) => ({ value: area, label: AREA_LABEL[area], icon: AREA_ICON[area] }))}
+              />
             </Field>
             <Field label="Servicio">
               <input name="name" required minLength={2} maxLength={120} placeholder="Consulta de medicina general" className={inputClass} />

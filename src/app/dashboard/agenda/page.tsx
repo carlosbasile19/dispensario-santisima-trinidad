@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Form from "next/form";
 import Link from "next/link";
 import { Suspense } from "react";
 
 import { AppointmentList } from "@/components/crm/appointment-list";
+import { DatePicker } from "@/components/crm/date-picker";
 import { Icon } from "@/components/crm/icons";
-import { RateForm } from "@/components/crm/rate-form";
+import { Select } from "@/components/crm/select";
+import { TodayRateCard } from "@/components/crm/today-rate";
 import {
   Card,
   CardHeader,
@@ -16,8 +19,8 @@ import {
   Skeleton,
 } from "@/components/crm/ui";
 import { STATUS_INFO, addDays, clinicToday, formatDay, isIsoDate, isUuid, param } from "@/lib/crm/clinic";
-import { getAppointmentsOn, getBalances, getProfessionals, getRate, getRecentRates } from "@/lib/crm/data";
-import { formatRate } from "@/lib/crm/money";
+import { getAppointmentsOn, getBalances, getProfessionals, getRecentRates, getTodayRate } from "@/lib/crm/data";
+import { ROLE_INFO } from "@/lib/crm/roles";
 import { getViewer, type Viewer } from "@/lib/crm/viewer";
 
 export const metadata: Metadata = { title: "Agenda" };
@@ -71,18 +74,16 @@ export default async function AgendaPage({ searchParams }: PageProps<"/dashboard
         </Card>
 
         {money && (
-          <Card>
-            <Suspense
-              fallback={
-                <>
-                  <CardHeader title="Tasa BCV de hoy" hint={<Skeleton className="w-40" />} />
-                  <FormSkeleton className="px-5 py-4" />
-                </>
-              }
-            >
-              <TodayRate />
-            </Suspense>
-          </Card>
+          <Suspense
+            fallback={
+              <Card>
+                <CardHeader title="Tasa BCV de hoy" hint={<Skeleton className="w-40" />} />
+                <FormSkeleton className="px-5 py-4" />
+              </Card>
+            }
+          >
+            <TodayRate />
+          </Suspense>
         )}
       </div>
     </div>
@@ -134,38 +135,34 @@ async function DayBar({ searchParams, own }: { searchParams: SearchParams; own: 
         {formatDay(day)}
         {day === today && <span className="ml-2 text-[13px] font-normal text-teal">Hoy</span>}
       </h2>
-      <form action="/dashboard/agenda" className="flex flex-wrap items-center gap-2">
-        <input
-          type="date"
-          name="fecha"
-          defaultValue={day}
-          aria-label="Ir al día"
-          className="h-10 rounded-lg border border-outline bg-white px-3 text-sm"
-        />
+      <Form action="/dashboard/agenda" className="flex flex-wrap items-center gap-2">
+        <DatePicker name="fecha" defaultValue={day} aria-label="Ir al día" submitOnChange className="w-[200px]" />
         {!own && professionals.list.length > 0 && (
-          <select
+          <Select
             name="profesional"
             defaultValue={filter}
             aria-label="Profesional"
-            className="h-10 max-w-[220px] rounded-lg border border-outline bg-white px-2 text-sm"
-          >
-            <option value="">Todos los profesionales</option>
-            {professionals.list.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            submitOnChange
+            className="w-[230px]"
+            panelMinWidth={260}
+            searchPlaceholder="Buscar profesional…"
+            options={[
+              { value: "", label: "Todos los profesionales", icon: "team", description: "Todos los consultorios" },
+              ...professionals.list.map((p) => ({
+                value: p.id,
+                label: p.name,
+                avatar: p.name,
+                description: p.role ? ROLE_INFO[p.role].label : undefined,
+              })),
+            ]}
+          />
         )}
-        <button type="submit" className={button}>
-          Ver
-        </button>
         {day !== today && (
           <Link href={link(today)} className={button}>
             Hoy
           </Link>
         )}
-      </form>
+      </Form>
     </div>
   );
 }
@@ -221,21 +218,6 @@ async function DayAppointments({ searchParams, viewer }: { searchParams: SearchP
 
 async function TodayRate() {
   const today = await clinicToday();
-  const [todayRate, recentRates] = await Promise.all([getRate(today), getRecentRates(today, 2)]);
-  return (
-    <>
-      <CardHeader
-        title="Tasa BCV de hoy"
-        hint={todayRate ? `Bs. ${formatRate(todayRate.bs_per_usd)} por dólar` : "Sin cargar: hace falta para cobrar"}
-      />
-      <div className="px-5 py-4">
-        <RateForm
-          day={today}
-          current={todayRate?.bs_per_usd ?? null}
-          suggestion={recentRates.find((r) => r.rate_date !== today)?.bs_per_usd ?? null}
-          hasPayments
-        />
-      </div>
-    </>
-  );
+  const [todayRate, recentRates] = await Promise.all([getTodayRate(today), getRecentRates(today, 2)]);
+  return <TodayRateCard today={today} rate={todayRate} recentRates={recentRates} />;
 }

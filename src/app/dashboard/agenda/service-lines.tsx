@@ -3,14 +3,45 @@
 import { useState } from "react";
 
 import { Icon } from "@/components/crm/icons";
+import { Select, type SelectOption } from "@/components/crm/select";
 import { inputClass } from "@/components/crm/styles";
-import { AREA_LABEL, SERVICE_AREAS } from "@/lib/crm/clinic";
+import { AREA_ICON, AREA_LABEL, SERVICE_AREAS } from "@/lib/crm/clinic";
 import { centsToInput, formatUsd, parseCents, toCents } from "@/lib/crm/money";
 import { ROLE_INFO, type Role } from "@/lib/crm/roles";
 import type { ServiceArea } from "@/lib/crm/clinic";
 
 export type ServiceOption = { id: string; area: ServiceArea; name: string; price_usd: number };
 export type ProfessionalOption = { id: string; name: string; role: Role | null };
+
+/** Doctors and the medical director as picker options (plus one already assigned). */
+export function professionalOptions(professionals: ProfessionalOption[], keep?: string | null): SelectOption[] {
+  return [
+    { value: "", label: "Sin asignar", description: "Se puede asignar después", icon: "team" },
+    ...professionals
+      .filter((p) => p.role === "doctor" || p.role === "director" || p.id === keep)
+      .map((p) => ({
+        value: p.id,
+        label: p.name,
+        avatar: p.name,
+        description: p.role ? ROLE_INFO[p.role].label : "Sin perfil",
+      })),
+  ];
+}
+
+/** The price list as picker options, grouped by area, with the centre's price. */
+export function serviceOptions(services: ServiceOption[]): SelectOption[] {
+  return SERVICE_AREAS.flatMap((area) =>
+    services
+      .filter((s) => s.area === area)
+      .map((s) => ({
+        value: s.id,
+        label: s.name,
+        meta: formatUsd(s.price_usd),
+        icon: AREA_ICON[area],
+        group: AREA_LABEL[area],
+      })),
+  );
+}
 
 type Line = { key: number; serviceId: string; professionalId: string; price: string; edited: boolean };
 
@@ -33,7 +64,8 @@ export function ServiceLines({
 }) {
   const [lines, setLines] = useState<Line[]>([newLine(0)]);
   const byId = new Map(services.map((s) => [s.id, s]));
-  const assignable = professionals.filter((p) => p.role === "doctor" || p.role === "director");
+  const serviceChoices = serviceOptions(services);
+  const professionalChoices = professionalOptions(professionals);
 
   const update = (key: number, patch: Partial<Line>) =>
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -64,49 +96,34 @@ export function ServiceLines({
           return (
             <li
               key={line.key}
-              className="grid gap-3 rounded-lg border border-line bg-cream/60 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_auto] md:items-start"
+              className={
+                single
+                  ? "grid gap-4 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_140px] sm:items-start"
+                  : "grid gap-3 rounded-xl border border-line bg-cream/60 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_auto] md:items-start"
+              }
             >
               <label className="flex min-w-0 flex-col gap-1.5 text-[13px] text-muted">
                 {single ? "Servicio" : `Servicio ${index + 1}`}
-                <select
+                <Select
                   required
                   value={line.serviceId}
-                  onChange={(e) => chooseService(line, e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="" disabled>
-                    Elige un servicio
-                  </option>
-                  {SERVICE_AREAS.map((area) => {
-                    const options = services.filter((s) => s.area === area);
-                    return options.length ? (
-                      <optgroup key={area} label={AREA_LABEL[area]}>
-                        {options.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} · {formatUsd(s.price_usd)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : null;
-                  })}
-                </select>
+                  onValueChange={(value) => chooseService(line, value)}
+                  options={serviceChoices}
+                  placeholder="Elige un servicio"
+                  searchPlaceholder="Buscar en el tarifario…"
+                  panelMinWidth={320}
+                />
               </label>
 
               <label className="flex min-w-0 flex-col gap-1.5 text-[13px] text-muted">
                 Profesional
-                <select
+                <Select
                   value={line.professionalId}
-                  onChange={(e) => update(line.key, { professionalId: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="">Sin asignar</option>
-                  {assignable.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                      {p.role === "director" ? ` (${ROLE_INFO.director.short})` : ""}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(value) => update(line.key, { professionalId: value })}
+                  options={professionalChoices}
+                  searchPlaceholder="Buscar profesional…"
+                  panelMinWidth={260}
+                />
               </label>
 
               <label className="flex min-w-0 flex-col gap-1.5 text-[13px] text-muted">

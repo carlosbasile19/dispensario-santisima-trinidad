@@ -55,6 +55,56 @@ export function CardHeader({ title, hint, action }: { title: ReactNode; hint?: R
   );
 }
 
+/** One key figure of a page (Inicio, Contabilidad). */
+export type Stat = {
+  label: string;
+  value: string;
+  hint: string;
+  /** The figure is missing and someone has to act (a BCV rate not loaded yet). */
+  alert?: boolean;
+};
+
+// Columns for each number of figures, so the row is always full.
+const STAT_COLUMNS: Record<number, string> = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-2 xl:grid-cols-4",
+  5: "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
+};
+
+function StatCard({ label, value, hint, alert }: { label: string; value: ReactNode; hint: ReactNode; alert?: boolean }) {
+  return (
+    <Card className="px-5 py-4">
+      <p className="text-[12px] tracking-[0.04em] text-stone uppercase">{label}</p>
+      <p className={`mt-1.5 text-xl ${alert ? "font-medium text-[#b03a36]" : "font-mono"}`}>{value}</p>
+      <p className="mt-1 text-[13px] text-muted">{hint}</p>
+    </Card>
+  );
+}
+
+/** A page's key figures as a row of cards that always spans the page. */
+export function StatGrid({ stats }: { stats: Stat[] }) {
+  return (
+    <div className={`grid gap-4 ${STAT_COLUMNS[stats.length] ?? STAT_COLUMNS[4]}`}>
+      {stats.map((stat) => (
+        <StatCard key={stat.label} {...stat} />
+      ))}
+    </div>
+  );
+}
+
+/** A StatGrid before its figures arrive: the same labelled cards, with the figures loading. */
+export function StatGridSkeleton({ labels }: { labels: readonly string[] }) {
+  return (
+    <div aria-busy="true" className={`grid gap-4 ${STAT_COLUMNS[labels.length] ?? STAT_COLUMNS[4]}`}>
+      <Busy />
+      {labels.map((label) => (
+        <StatCard key={label} label={label} value={<Skeleton className="w-20" />} hint={<Skeleton className="w-32" />} />
+      ))}
+    </div>
+  );
+}
+
 /** Stands in for a list that has no records yet. */
 export function EmptyState({
   icon,
@@ -102,14 +152,31 @@ export function RoleBadge({ role }: { role: Role }) {
   return <Badge tone={tone}>{ROLE_INFO[role].label}</Badge>;
 }
 
-export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
+/** Profile photo when the member uploaded one, otherwise their initials. */
+export function Avatar({
+  name,
+  src,
+  size = "md",
+}: {
+  name: string;
+  src?: string | null;
+  size?: "xs" | "sm" | "md" | "lg";
+}) {
   const initials = name
     .replace(/^(Dr\.|Dra\.|Lcda\.|Lcdo\.)\s+/, "")
     .split(" ")
     .slice(0, 2)
     .map((part) => part[0])
     .join("");
-  const dims = size === "lg" ? "size-14 text-lg" : size === "sm" ? "size-7 text-[11px]" : "size-9 text-[13px]";
+  const dims =
+    size === "lg" ? "size-14 text-lg" : size === "sm" ? "size-7 text-[11px]" : size === "xs" ? "size-5 text-[9px]" : "size-9 text-[13px]";
+  if (src) {
+    return (
+      // Small, already-sized photos from Supabase Storage: a plain <img> needs no remotePatterns.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="" aria-hidden="true" className={`shrink-0 rounded-full bg-frost object-cover ${dims}`} />
+    );
+  }
   return (
     <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full bg-frost font-medium text-navy ${dims}`}>
       {initials}
@@ -138,17 +205,6 @@ export function NoAccess({ role, section }: { role: Role; section: string }) {
 
 export const th = "px-5 py-3 text-left text-[12px] font-medium tracking-[0.04em] text-stone uppercase whitespace-nowrap";
 export const td = "px-5 py-3.5 align-middle text-sm";
-
-/** One figure of a summary row: label, value and a short hint. */
-export function StatCard({ label, value, hint }: { label: string; value: ReactNode; hint: ReactNode }) {
-  return (
-    <Card className="px-5 py-4">
-      <p className="text-[12px] tracking-[0.04em] text-stone uppercase">{label}</p>
-      <p className="mt-1.5 font-mono text-xl">{value}</p>
-      <p className="mt-1 text-[13px] text-muted">{hint}</p>
-    </Card>
-  );
-}
 
 // Loading states ------------------------------------------------------------
 
@@ -208,13 +264,6 @@ export function FormSkeleton({ fields = 1, className = "" }: { fields?: number; 
       ))}
     </div>
   );
-}
-
-/** Summary cards with their labels and the figures still loading. */
-export function StatCardsSkeleton({ labels }: { labels: readonly string[] }) {
-  return labels.map((label) => (
-    <StatCard key={label} label={label} value={<Skeleton className="w-20" />} hint={<Skeleton className="w-32" />} />
-  ));
 }
 
 /** The day picker of the agenda and of Contabilidad, before the day is known. */

@@ -4,9 +4,12 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PaymentBadge } from "@/components/crm/appointment-list";
+import { DatePicker, TimePicker } from "@/components/crm/date-picker";
 import { ActionForm, Field, SubmitButton } from "@/components/crm/forms";
 import { inputClass } from "@/components/crm/styles";
 import { RateForm } from "@/components/crm/rate-form";
+import { Select } from "@/components/crm/select";
+import { Icon } from "@/components/crm/icons";
 import {
   Badge,
   Card,
@@ -37,13 +40,13 @@ import {
   localTime,
   patientName,
 } from "@/lib/crm/clinic";
-import { getAppointment, getBalances, getProfessionals, getRate, getRecentRates, getServices } from "@/lib/crm/data";
+import { getAppointment, getBalances, getProfessionals, getRecentRates, getServices, getTodayRate } from "@/lib/crm/data";
 import { formatBs, formatRate, formatUsd, toCents, toRate, usdToBs } from "@/lib/crm/money";
 import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { VoidPayment } from "../../contabilidad/void-payment";
 import { rescheduleAppointment, saveAppointmentNotes, setAppointmentStatus } from "../actions";
-import { AddItemForm, ItemControls, PaymentForm } from "./controls";
+import { AddItemModal, ItemControls, PaymentForm } from "./controls";
 
 export const metadata: Metadata = { title: "Cita" };
 
@@ -97,7 +100,7 @@ function AppointmentSkeleton({ viewer }: { viewer: Viewer }) {
           </Card>
           {(p.collectPayments || p.accounting) && (
             <Card>
-              <CardHeader title="Cobro" hint="En dólares o en bolívares a la tasa BCV del día" />
+              <CardHeader title="Cobro" hint="Dólares, bolívares a la tasa BCV del día, o Cashea" />
               <RowsSkeleton rows={3} dense />
             </Card>
           )}
@@ -125,12 +128,12 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
     getProfessionals(),
     manage ? getServices() : [],
     money ? getBalances([id]) : null,
-    money ? getRate(today) : null,
+    money ? getTodayRate(today) : null,
     p.collectPayments ? getRecentRates(today, 2) : [],
     money
       ? supabase
           .from("payments")
-          .select("id, method, currency, amount_usd, amount_bs, rate, reference, paid_on, created_at, voided_at, void_reason")
+          .select("id, method, currency, amount_usd, amount_bs, rate, reference, cashea_order, paid_on, created_at, voided_at, void_reason")
           .eq("appointment_id", id)
           .order("created_at")
       : null,
@@ -213,8 +216,10 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
                           <ItemControls
                             itemId={item.id}
                             appointmentId={id}
+                            serviceName={item.service?.name ?? "Servicio"}
                             professionalId={item.professional_id}
                             price={item.price_usd}
+                            listPrice={item.list_price_usd}
                             professionals={professionals.list}
                             canRemove={appointment.items.length > 1}
                           />
@@ -237,12 +242,9 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
               )}
             </table>
             {manage && offered.length > 0 && (
-              <details className="border-t border-line px-5 py-4">
-                <summary className="cursor-pointer text-sm font-medium text-teal hover:text-navy">Añadir un servicio</summary>
-                <div className="mt-4">
-                  <AddItemForm appointmentId={id} services={offered} professionals={professionals.list} />
-                </div>
-              </details>
+              <div className="border-t border-line px-5 py-4">
+                <AddItemModal appointmentId={id} services={offered} professionals={professionals.list} />
+              </div>
             )}
           </Card>
 
@@ -272,28 +274,21 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
                   <p className="text-[13px] font-medium">Mover la cita</p>
                   <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
                     <Field label="Día">
-                      <input type="date" name="date" required defaultValue={day} className={inputClass} />
+                      <DatePicker name="date" required defaultValue={day} />
                     </Field>
                     <Field label="Hora">
-                      <input
-                        type="time"
-                        name="time"
-                        required
-                        step={300}
-                        defaultValue={localTime(appointment.starts_at)}
-                        className={inputClass}
-                      />
+                      <TimePicker name="time" required defaultValue={localTime(appointment.starts_at)} />
                     </Field>
                     <Field label="Duración">
-                      <select name="duration" defaultValue={String(appointment.duration_minutes)} className={inputClass}>
-                        {[...new Set([...DURATIONS, appointment.duration_minutes])]
+                      <Select
+                        name="duration"
+                        defaultValue={String(appointment.duration_minutes)}
+                        triggerIcon="clock"
+                        searchable={false}
+                        options={[...new Set([...DURATIONS, appointment.duration_minutes])]
                           .sort((a, b) => a - b)
-                          .map((minutes) => (
-                            <option key={minutes} value={minutes}>
-                              {formatDuration(minutes)}
-                            </option>
-                          ))}
-                      </select>
+                          .map((minutes) => ({ value: String(minutes), label: formatDuration(minutes) }))}
+                      />
                     </Field>
                     <SubmitButton variant="secondary" pendingLabel="Moviendo…">
                       Mover
@@ -357,7 +352,7 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
 
           {money && (
             <Card>
-              <CardHeader title="Cobro" hint="En dólares o en bolívares a la tasa BCV del día" />
+              <CardHeader title="Cobro" hint="Dólares, bolívares a la tasa BCV del día, o Cashea" />
               <dl className="grid gap-2 px-5 py-4 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-muted">Total</dt>
@@ -388,12 +383,22 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
                       <li key={pay.id} className="flex items-start justify-between gap-3 px-5 py-3 text-sm">
                         <div className="min-w-0">
                           <div className={voided ? "text-stone line-through" : ""}>
-                            <p className="font-medium">{PAYMENT_METHODS[pay.method].label}</p>
+                            <p className="flex items-center gap-1.5 font-medium">
+                              <Icon name={PAYMENT_METHODS[pay.method].icon} className="size-3.5 text-teal" />
+                              {PAYMENT_METHODS[pay.method].label}
+                              {pay.cashea_order && !PAYMENT_METHODS[pay.method].financed && (
+                                <span className="font-normal text-muted">· inicial Cashea</span>
+                              )}
+                            </p>
                             <p className="text-[12px] text-muted">
                               {formatDay(pay.paid_on, "short")} · {paidAt.format(new Date(pay.created_at))} · tasa{" "}
                               {formatRate(pay.rate)}
+                              {pay.cashea_order && ` · orden ${pay.cashea_order}`}
                               {pay.reference && ` · ref. ${pay.reference}`}
                             </p>
+                            {PAYMENT_METHODS[pay.method].financed && !voided && (
+                              <p className="text-[12px] text-[#135c62]">Financiado: se cobra en cuotas, garantizadas por Cashea</p>
+                            )}
                           </div>
                           {voided && <p className="text-[12px] text-[#b03a36]">Anulado: {pay.void_reason}</p>}
                         </div>
@@ -404,7 +409,12 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
                           <p className="font-mono text-[12px] text-muted">
                             {usd ? formatBs(pay.amount_bs) : formatUsd(pay.amount_usd)}
                           </p>
-                          {p.accounting && !voided && <VoidPayment paymentId={pay.id} />}
+                          {p.accounting && !voided && (
+                            <VoidPayment
+                              paymentId={pay.id}
+                              summary={`${PAYMENT_METHODS[pay.method].label} · ${usd ? formatUsd(pay.amount_usd) : formatBs(pay.amount_bs)}`}
+                            />
+                          )}
                         </div>
                       </li>
                     );
@@ -423,11 +433,12 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
                     />
                   ) : (
                     <div className="flex flex-col gap-3">
-                      <p className="text-sm font-medium">Antes de cobrar, carga la tasa BCV de hoy</p>
+                      <p className="text-sm font-medium">Antes de cobrar hace falta la tasa BCV de hoy</p>
                       <RateForm
                         day={today}
                         current={null}
                         suggestion={recentRates.find((r) => r.rate_date !== today)?.bs_per_usd ?? null}
+                        canFetch
                       />
                     </div>
                   )}
