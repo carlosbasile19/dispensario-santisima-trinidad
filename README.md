@@ -46,7 +46,11 @@ src/
   lib/crm/
     roles.ts                  # the four roles and what each may see (single source)
     viewer.ts                 # current member + role from the database
-  components/crm/             # platform UI: sidebar, cards, badges, icons
+    clinic.ts                 # labels (areas, statuses, payment methods) and America/Caracas dates
+    money.ts                  # exact USD/Bs arithmetic, the same rounding as the database
+    data.ts                   # shared reads: agenda, balances, rates, services, professionals
+    form-state.ts             # what Server Actions answer, Spanish messages for DB errors
+  components/crm/             # platform UI: sidebar, cards, badges, icons, forms, rate form
 supabase/
   config.toml                 # local stack config (`supabase start`)
   migrations/                 # source of truth for the schema
@@ -61,11 +65,20 @@ supabase/
 
 ## Admin platform
 
-`/dashboard` is the clinic's admin platform. Accounts, roles and sign-in are real. Agenda, Pacientes, Contabilidad and the services in Gestión have no data model yet and show an empty state.
+`/dashboard` is the clinic's admin platform: accounts and roles, patients, the agenda, the price list, the daily BCV rate and payments.
 
 - **Roles.** Each member has one role on `profiles.role` (`doctor`, `director`, `staff`, `admin`); what each may see is defined once in `src/lib/crm/roles.ts`. A signed-in account with no role lands on `/acceso-pendiente`. Members cannot change their own role: only administrators can, from Miembros (`set_member_role`).
 - **No public sign-up.** Administrators create accounts in Miembros ("Crear cuenta") and can give a member a new temporary password there. Both use `SUPABASE_SECRET_KEY` on the server (`src/lib/supabase/admin.ts`), set in Vercel. The very first administrator is created by hand: add the user in Supabase → Authentication, then `update public.profiles set role = 'admin' where email = '…'`. `scripts/create-members.mjs` does the same from a terminal. Turn off "Allow new users to sign up" in Supabase → Authentication so the API matches the UI.
 - **Passkeys.** Members add them in Mi cuenta and can then use "Entrar con passkey". In Supabase → Authentication, enable passkeys and set the relying party ID to the production domain (no scheme) and its origin to `https://<production-domain>`. Passkeys are bound to that domain, so they do not work on preview deployments.
+
+## Agenda, prices and payments
+
+- **Patients** are registered by the front desk (`staff`) and administrators, from Pacientes or straight from "Nueva cita". Doctors see only patients they have a service with.
+- **Appointments** are one visit of one patient. A visit carries one or more services (`appointment_items`), each with its own professional (a member with the `doctor` or `director` role) and price, so one visit can have a consultation, a lab test and a dental cleaning with three different people. Doctors see the visits where they have a service.
+- **Prices** are the centre's, in US dollars, set by administrators in Contabilidad › Tarifas (`services`). A booked service copies that price (`list_price_usd`); the front desk may charge another one (`price_usd`) and the original stays on record. Changing a price affects new bookings only.
+- **BCV rate.** One rate per day (`exchange_rates`, Bs per dollar, 8 decimals), entered from bcv.org.ve. The front desk sets today's; administrators any day's (`set_exchange_rate`). There is no automatic fetch.
+- **Payments** are taken today, at today's rate, in the currency received: cash or Zelle in dollars, pago móvil, punto, transferencia or cash in bolívares. The database derives the other currency (`payments_apply_rate`) and refuses a payment above the balance. Correcting a day's rate recalculates every payment of that day, so a day never mixes two rates. Payments are never edited: administrators void them with a reason (`void_payment`). Balances are in dollars (`appointment_balances`).
+- The clinic's calendar is America/Caracas time, in the database (`clinic_today()`, `appointments.starts_on`) and on the screens (`lib/crm/clinic.ts`).
 
 ## Database rules
 
