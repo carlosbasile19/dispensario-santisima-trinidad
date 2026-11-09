@@ -7,8 +7,8 @@ import { Icon } from "@/components/crm/icons";
 import {
   Avatar, Badge, Button, Card, CardHeader, Locked, NoAccess, PaymentBadge, StatusBadge, clock, usd,
 } from "@/components/crm/ui";
-import { APPOINTMENTS, doctorById, patientById } from "@/lib/crm/sample-data";
-import { canReadClinical, getViewer, inScope, showCedula } from "@/lib/crm/viewer";
+import { APPOINTMENTS, DOCUMENTS, doctorById, patientById } from "@/lib/crm/sample-data";
+import { canDownloadDocuments, canEditClinical, canReadClinical, getViewer, inScope } from "@/lib/crm/viewer";
 
 export const metadata: Metadata = { title: "Paciente" };
 
@@ -34,9 +34,9 @@ function Tags({ items, empty, tone }: { items: string[]; empty: string; tone?: "
   );
 }
 
-// Patient record. Personal data and appointments on the left for anyone who
-// may open the patient; the clinical history on the right only for roles with
-// clinical access. Everyone else gets a locked panel in its place.
+// Patient record. Personal data and appointments on the left; clinical
+// history and documents on the right. Reading, writing and downloading are
+// separate permissions: operational staff read and download but cannot edit.
 //
 // The record reads the URL and the session, so it streams inside its own
 // <Suspense>: the page shell stays the same for every patient link.
@@ -55,6 +55,8 @@ async function PatientRecord({ params }: { params: Promise<{ id: string }> }) {
   if (!inScope(viewer, patient.doctorId)) return <NoAccess role={viewer.role} section="este paciente" />;
 
   const clinical = canReadClinical(viewer, patient);
+  const editable = canEditClinical(viewer, patient);
+  const documents = DOCUMENTS.filter((d) => d.patientId === patient.id);
   const doctor = doctorById(patient.doctorId);
   const visits = APPOINTMENTS.filter((a) => a.patientId === patient.id);
 
@@ -70,13 +72,13 @@ async function PatientRecord({ params }: { params: Promise<{ id: string }> }) {
           <h1 className="font-serif text-[clamp(28px,3vw,36px)] leading-tight">{patient.name}</h1>
           <p className="mt-1 text-[15px] text-muted">
             {patient.age} años · {patient.sex === "F" ? "Femenino" : "Masculino"} ·{" "}
-            <span className="font-mono text-[13px]">{showCedula(viewer, patient.cedula)}</span> · Paciente desde{" "}
+            <span className="font-mono text-[13px]">{patient.cedula}</span> · Paciente desde{" "}
             {patient.since}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {viewer.permissions.manageSchedule && <Button variant="secondary" icon="calendar">Agendar cita</Button>}
-          {clinical && viewer.doctorId && <Button icon="plus">Nueva nota</Button>}
+          {editable && <Button icon="plus">Nueva nota</Button>}
         </div>
       </header>
 
@@ -123,8 +125,19 @@ async function PatientRecord({ params }: { params: Promise<{ id: string }> }) {
           </Card>
         </div>
 
+        <div className="flex flex-col gap-6">
         <Card>
-          <CardHeader title="Historia clínica" hint={clinical ? `Grupo sanguíneo ${patient.bloodType}` : undefined} />
+          <CardHeader
+            title="Historia clínica"
+            hint={clinical ? `Grupo sanguíneo ${patient.bloodType}` : undefined}
+            action={
+              clinical && !editable ? (
+                <Badge tone="outline">
+                  <Icon name="eye" className="mr-1 size-3.5" /> Solo lectura
+                </Badge>
+              ) : undefined
+            }
+          />
           {clinical ? (
             <div className="flex flex-col gap-6 px-5 py-5">
               <dl className="grid gap-5 sm:grid-cols-3">
@@ -162,12 +175,50 @@ async function PatientRecord({ params }: { params: Promise<{ id: string }> }) {
           ) : (
             <div className="px-5 py-5">
               <Locked title="Datos clínicos protegidos">
-                Condiciones, alergias, medicación, notas y resultados solo los ven el médico tratante y la
-                dirección médica. Puedes agendar, registrar la llegada y cobrar sin abrirlos.
+                Tu perfil no incluye la historia clínica de este paciente. Si la necesitas, pídele acceso a
+                un administrador.
               </Locked>
             </div>
           )}
         </Card>
+
+        {canDownloadDocuments(viewer, patient) && (
+          <Card>
+            <CardHeader
+              title="Documentos"
+              hint={`${documents.length} ${documents.length === 1 ? "archivo" : "archivos"}`}
+              action={editable ? <Button variant="secondary" icon="plus">Subir documento</Button> : undefined}
+            />
+            {documents.length ? (
+              <ul className="divide-y divide-line">
+                {documents.map((doc) => (
+                  <li key={doc.id} className="flex items-center gap-3 px-5 py-3.5">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-frost text-navy">
+                      <Icon name="file" className="size-[18px]" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{doc.name}</p>
+                      <p className="truncate text-[13px] text-muted">
+                        {doc.kind} · {doc.date} · {doc.size}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Descargar ${doc.name}`}
+                      className="flex h-9 items-center gap-1.5 rounded-lg border border-outline px-3 text-[13px] font-medium whitespace-nowrap hover:border-navy"
+                    >
+                      <Icon name="download" className="size-4" />
+                      <span className="hidden sm:inline">Descargar</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-5 py-5 text-sm text-muted">Este paciente todavía no tiene documentos.</p>
+            )}
+          </Card>
+        )}
+        </div>
       </div>
     </div>
   );

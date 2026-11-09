@@ -106,6 +106,23 @@ export const PATIENTS: Patient[] = [
 
 export const patientById = (id: string) => PATIENTS.find((p) => p.id === id);
 
+export type PatientDocument = { id: string; patientId: string; name: string; kind: string; date: string; size: string };
+
+/** Files attached to a patient record: results, reports, prescriptions. */
+export const DOCUMENTS: PatientDocument[] = [
+  { id: "doc-1", patientId: "p-1042", name: "Perfil lipídico y glicemia", kind: "Resultado de laboratorio", date: "28 oct 2026", size: "PDF · 184 KB" },
+  { id: "doc-2", patientId: "p-1042", name: "Récipe: Losartán y Metformina", kind: "Receta", date: "27 oct 2026", size: "PDF · 92 KB" },
+  { id: "doc-3", patientId: "p-1042", name: "Electrocardiograma", kind: "Informe de estudio", date: "12 ago 2026", size: "PDF · 1,2 MB" },
+  { id: "doc-4", patientId: "p-1043", name: "Récipe: Amlodipina", kind: "Receta", date: "14 oct 2026", size: "PDF · 88 KB" },
+  { id: "doc-5", patientId: "p-1044", name: "Radiografía periapical 36", kind: "Imagen", date: "30 sep 2026", size: "JPG · 640 KB" },
+  { id: "doc-6", patientId: "p-1044", name: "Presupuesto de tratamiento", kind: "Presupuesto", date: "30 sep 2026", size: "PDF · 76 KB" },
+  { id: "doc-7", patientId: "p-1046", name: "Ecosonograma obstétrico · 18 semanas", kind: "Informe de estudio", date: "20 oct 2026", size: "PDF · 2,1 MB" },
+  { id: "doc-8", patientId: "p-1047", name: "Indicaciones de higiene oral", kind: "Indicaciones", date: "19 oct 2026", size: "PDF · 64 KB" },
+  { id: "doc-9", patientId: "p-1049", name: "Electrocardiograma", kind: "Informe de estudio", date: "22 sep 2026", size: "PDF · 1,1 MB" },
+  { id: "doc-10", patientId: "p-1050", name: "Consentimiento del representante", kind: "Consentimiento", date: "5 oct 2026", size: "PDF · 110 KB" },
+  { id: "doc-11", patientId: "p-1051", name: "Orden de laboratorio y electrocardiograma", kind: "Orden", date: "8 oct 2026", size: "PDF · 70 KB" },
+];
+
 export type AppointmentStatus = "pendiente" | "confirmada" | "en_sala" | "en_consulta" | "atendida" | "no_asistio";
 export type PaymentStatus = "pagado" | "por_cobrar" | "cashea";
 

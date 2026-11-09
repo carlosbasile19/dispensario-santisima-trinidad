@@ -14,12 +14,14 @@ export type Scope = "all" | "own" | "none";
 export type Permissions = {
   /** Agenda and patient list: whose appointments and patients are listed. */
   schedule: Exclude<Scope, "none">;
-  /** Clinical data: history, diagnoses, notes, results. */
+  /** Clinical data (history, diagnoses, notes, results): whose can be read. */
   clinical: Scope;
+  /** Clinical data: whose can be written (new notes, changes). */
+  editClinical: Scope;
+  /** Open and download patient documents (results, reports, prescriptions). */
+  documents: Scope;
   /** Book, move and check in appointments; register patients. */
   manageSchedule: boolean;
-  /** Identity documents are shown in full (otherwise masked). */
-  fullIdentity: boolean;
   /** Take payments at the front desk. */
   collectPayments: boolean;
   accounting: boolean;
@@ -38,8 +40,9 @@ export const ROLE_INFO: Record<
     permissions: {
       schedule: "own",
       clinical: "own",
+      editClinical: "own",
+      documents: "own",
       manageSchedule: false,
-      fullIdentity: true,
       collectPayments: false,
       accounting: false,
       management: false,
@@ -53,8 +56,9 @@ export const ROLE_INFO: Record<
     permissions: {
       schedule: "all",
       clinical: "all",
+      editClinical: "all",
+      documents: "all",
       manageSchedule: false,
-      fullIdentity: true,
       collectPayments: false,
       accounting: false,
       management: false,
@@ -64,12 +68,13 @@ export const ROLE_INFO: Record<
   staff: {
     label: "Personal operativo",
     short: "Operativo",
-    description: "Agenda citas, registra pacientes y cobra. No ve datos clínicos.",
+    description: "Agenda citas y cobra. Ve los datos y descarga documentos, sin modificarlos.",
     permissions: {
       schedule: "all",
-      clinical: "none",
+      clinical: "all",
+      editClinical: "none",
+      documents: "all",
       manageSchedule: true,
-      fullIdentity: false,
       collectPayments: true,
       accounting: false,
       management: false,
@@ -83,8 +88,9 @@ export const ROLE_INFO: Record<
     permissions: {
       schedule: "all",
       clinical: "all",
+      editClinical: "all",
+      documents: "all",
       manageSchedule: true,
-      fullIdentity: true,
       collectPayments: true,
       accounting: true,
       management: true,
@@ -120,7 +126,8 @@ export function navFor(role: Role): NavGroup[] {
   return groups;
 }
 
-type Level = "full" | "own" | "none";
+type Level = "full" | "own" | "read" | "none";
+const scopeLevel = (scope: Scope): Level => (scope === "all" ? "full" : scope);
 
 /** Rows of the "Roles y permisos" matrix, derived from the table above. */
 export const PERMISSION_MATRIX: { group: string; rows: { label: string; level: (role: Role) => Level }[] }[] = [
@@ -131,9 +138,12 @@ export const PERMISSION_MATRIX: { group: string; rows: { label: string; level: (
       { label: "Agendar, mover y registrar llegadas", level: (r) => (can(r).manageSchedule ? "full" : "none") },
       {
         label: "Historia clínica, diagnósticos y resultados",
-        level: (r) => (can(r).clinical === "all" ? "full" : can(r).clinical === "own" ? "own" : "none"),
+        level: (r) => {
+          const { clinical, editClinical } = can(r);
+          return clinical !== "none" && editClinical === "none" ? "read" : scopeLevel(clinical);
+        },
       },
-      { label: "Documento de identidad completo", level: (r) => (can(r).fullIdentity ? "full" : "none") },
+      { label: "Ver y descargar documentos", level: (r) => scopeLevel(can(r).documents) },
       { label: "Cobrar en recepción", level: (r) => (can(r).collectPayments ? "full" : "none") },
     ],
   },

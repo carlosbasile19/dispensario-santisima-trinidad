@@ -11,6 +11,7 @@ export const metadata: Metadata = { title: "Miembros" };
 const LEVEL = {
   full: { label: "Completo", className: "text-[#135c62]", icon: "check" },
   own: { label: "Solo propios", className: "text-navy", icon: "check" },
+  read: { label: "Solo lectura", className: "text-navy", icon: "eye" },
   none: { label: "Sin acceso", className: "text-stone", icon: "lock" },
 } as const;
 

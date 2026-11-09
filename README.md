@@ -44,7 +44,7 @@ src/
                               # Pacientes, Contabilidad, Gestión, Miembros
   lib/crm/
     roles.ts                  # the four roles and what each may see (single source)
-    viewer.ts                 # current user + role; scoping and masking helpers
+    viewer.ts                 # current user + role; scoping and permission helpers
     sample-data.ts            # invented data for the design phase
   components/crm/             # platform UI: sidebar, cards, badges, icons
 supabase/

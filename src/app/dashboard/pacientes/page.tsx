@@ -4,12 +4,12 @@ import Link from "next/link";
 import { Icon } from "@/components/crm/icons";
 import { Avatar, Badge, Button, Card, PageHeader, SearchField, td, th } from "@/components/crm/ui";
 import { PATIENTS, doctorById } from "@/lib/crm/sample-data";
-import { canReadClinical, getViewer, inScope, showCedula } from "@/lib/crm/viewer";
+import { canReadClinical, getViewer, inScope } from "@/lib/crm/viewer";
 
 export const metadata: Metadata = { title: "Pacientes" };
 
-// Patient list. Doctors see their own patients. Staff see every patient but
-// with the identity document masked and no clinical column.
+// Patient list. Doctors see their own patients; every other profile sees all
+// of them. Only profiles that manage the agenda can register a patient.
 export default async function PatientsPage() {
   const viewer = await getViewer();
   const patients = PATIENTS.filter((p) => inScope(viewer, p.doctorId));
@@ -48,7 +48,7 @@ export default async function PatientsPage() {
                     <Avatar name={p.name} />
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{p.name}</span>
-                      <span className="block font-mono text-[12px] text-muted">{showCedula(viewer, p.cedula)}</span>
+                      <span className="block font-mono text-[12px] text-muted">{p.cedula}</span>
                     </span>
                   </Link>
                 </td>

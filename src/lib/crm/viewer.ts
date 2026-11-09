@@ -56,9 +56,14 @@ export function canReadClinical(viewer: Viewer, patient: Patient) {
   return clinical === "all" || (clinical === "own" && patient.doctorId === viewer.doctorId);
 }
 
-/** "V-8.943.210" → "V-•.•••.210" for roles without full identity access. */
-export function showCedula(viewer: Viewer, cedula: string) {
-  if (viewer.permissions.fullIdentity) return cedula;
-  const tail = cedula.slice(-3);
-  return cedula.slice(0, -3).replace(/\d/g, "•") + tail;
+/** Whether the viewer may add or change this patient's clinical data. */
+export function canEditClinical(viewer: Viewer, patient: Patient) {
+  const { editClinical } = viewer.permissions;
+  return editClinical === "all" || (editClinical === "own" && patient.doctorId === viewer.doctorId);
+}
+
+/** Whether the viewer may open and download this patient's documents. */
+export function canDownloadDocuments(viewer: Viewer, patient: Patient) {
+  const { documents } = viewer.permissions;
+  return documents === "all" || (documents === "own" && patient.doctorId === viewer.doctorId);
 }
