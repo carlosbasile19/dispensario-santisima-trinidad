@@ -2,67 +2,78 @@
 
 import { useActionState, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { signIn, signUp, type AuthFormState } from "./actions";
+import { safeNext } from "@/lib/safe-redirect";
+import { createClient } from "@/lib/supabase/client";
+import { signIn, type AuthFormState } from "./actions";
+
+const input =
+  "h-11 rounded-lg border border-outline bg-white px-3 text-[15px] text-navy outline-none focus:border-navy";
 
 export function LoginForm() {
   const next = useSearchParams().get("next") ?? "";
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [state, action, pending] = useActionState<AuthFormState, FormData>(
-    mode === "signin" ? signIn : signUp,
-    undefined,
-  );
+  const [state, action, pending] = useActionState<AuthFormState, FormData>(signIn, undefined);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const [passkeyPending, setPasskeyPending] = useState(false);
+
+  async function signInWithPasskey() {
+    setPasskeyError(null);
+    if (!window.PublicKeyCredential) {
+      setPasskeyError("Este navegador no admite passkeys. Entra con tu contraseña.");
+      return;
+    }
+    setPasskeyPending(true);
+    const { data, error } = await createClient().auth.signInWithPasskey();
+    if (error || !data?.session) {
+      setPasskeyPending(false);
+      setPasskeyError("No se pudo entrar con la passkey. Inténtalo de nuevo o usa tu contraseña.");
+      return;
+    }
+    // Full navigation so the server reads the new session cookie.
+    window.location.assign(safeNext(next));
+  }
+
+  const error = state?.error ?? passkeyError;
 
   return (
-    <form action={action} className="flex w-full flex-col gap-4">
-      <input type="hidden" name="next" value={next} />
+    <div className="flex w-full flex-col gap-5">
+      <form action={action} className="flex flex-col gap-4">
+        <input type="hidden" name="next" value={next} />
+        <label className="flex flex-col gap-1.5 text-sm text-muted">
+          Correo
+          <input name="email" type="email" required autoComplete="username webauthn" className={input} />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm text-muted">
+          Contraseña
+          <input name="password" type="password" required autoComplete="current-password" className={input} />
+        </label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Email
-        <input
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-          className="rounded-md border border-foreground/20 bg-transparent px-3 py-2"
-        />
-      </label>
+        {error && (
+          <p role="alert" className="text-sm text-[#b03a36]">
+            {error}
+          </p>
+        )}
 
-      <label className="flex flex-col gap-1 text-sm">
-        Password
-        <input
-          name="password"
-          type="password"
-          required
-          minLength={mode === "signup" ? 8 : undefined}
-          autoComplete={mode === "signin" ? "current-password" : "new-password"}
-          className="rounded-md border border-foreground/20 bg-transparent px-3 py-2"
-        />
-      </label>
+        <button
+          type="submit"
+          disabled={pending}
+          className="h-11 rounded-lg bg-navy text-[15px] font-medium text-white transition-colors hover:bg-teal disabled:opacity-60"
+        >
+          {pending ? "Entrando…" : "Entrar"}
+        </button>
+      </form>
 
-      {state?.error && (
-        <p role="alert" className="text-sm text-red-600">
-          {state.error}
-        </p>
-      )}
-      {state?.message && <p className="text-sm text-green-600">{state.message}</p>}
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
-      >
-        {pending ? "…" : mode === "signin" ? "Sign in" : "Create account"}
-      </button>
+      <div className="flex items-center gap-3 text-[12px] tracking-[0.08em] text-stone uppercase">
+        <span className="h-px flex-1 bg-line" />o<span className="h-px flex-1 bg-line" />
+      </div>
 
       <button
         type="button"
-        onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-        className="text-sm text-foreground/70 underline-offset-4 hover:underline"
+        onClick={signInWithPasskey}
+        disabled={passkeyPending}
+        className="h-11 rounded-lg border border-outline bg-white text-[15px] font-medium text-navy transition-colors hover:border-navy disabled:opacity-60"
       >
-        {mode === "signin"
-          ? "No account? Create one"
-          : "Already have an account? Sign in"}
+        {passkeyPending ? "Esperando tu passkey…" : "Entrar con passkey"}
       </button>
-    </form>
+    </div>
   );
 }
