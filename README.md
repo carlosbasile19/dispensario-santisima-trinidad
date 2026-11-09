@@ -72,6 +72,8 @@ supabase/
 ## Database rules
 
 - Every schema change is a migration in `supabase/migrations/`. Do not edit the schema from the dashboard.
+- The project's migration history must list exactly the files in `supabase/migrations/`, or `pnpm db:push` refuses to run. A migration applied any other way (for example through the Supabase MCP `apply_migration` tool) is recorded under the time it ran, so name its local file with that version.
+- History from before the `20261108195127` baseline belongs to an earlier schema. It is archived in the database in `supabase_migrations.schema_migrations_pre_baseline` and is not part of this repo.
 - Every table in `public` gets RLS plus explicit policies. The project also has an event trigger that turns RLS on for new tables automatically.
 - `public.profiles` is created automatically for each new auth user by the `on_auth_user_created` trigger.
 
