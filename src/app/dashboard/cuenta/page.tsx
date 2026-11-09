@@ -11,8 +11,7 @@ import { PasswordForm } from "./password-form";
 export const metadata: Metadata = { title: "Mi cuenta" };
 
 // Mi cuenta: the member's own profile and how they sign in (password and
-// passkeys). Always shows the real account, even while an administrator is
-// previewing another profile.
+// passkeys).
 export default async function AccountPage() {
   const [viewer, profile] = await Promise.all([getViewer(), getCurrentProfile()]);
   const name = profile?.full_name?.trim() || profile?.email || "Miembro";
@@ -28,7 +27,7 @@ export default async function AccountPage() {
             <p className="truncate text-lg font-medium">{name}</p>
             <p className="truncate text-sm text-muted">{profile?.email}</p>
           </div>
-          <RoleBadge role={viewer.realRole} />
+          <RoleBadge role={viewer.role} />
           <form action={signOut}>
             <button
               type="submit"
@@ -39,7 +38,7 @@ export default async function AccountPage() {
           </form>
         </div>
         <p className="border-t border-line px-5 py-3.5 text-[13px] text-muted">
-          {ROLE_INFO[viewer.realRole].description} Solo un administrador puede cambiar tu perfil.
+          {ROLE_INFO[viewer.role].description} Solo un administrador puede cambiar tu perfil.
         </p>
       </Card>
 

@@ -2,26 +2,10 @@
 
 import { randomBytes } from "node:crypto";
 import { refresh } from "next/cache";
-import { cookies } from "next/headers";
 import { getCurrentProfile } from "@/lib/auth";
 import { isRole } from "@/lib/crm/roles";
-import { PREVIEW_ROLE_COOKIE } from "@/lib/crm/viewer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-
-/** Administrators only: previews the platform as another profile (see lib/crm/viewer.ts). */
-export async function setPreviewRole(formData: FormData) {
-  const profile = await getCurrentProfile();
-  const role = formData.get("role");
-  if (profile?.role !== "admin" || !isRole(role)) return;
-  (await cookies()).set(PREVIEW_ROLE_COOKIE, role, {
-    path: "/dashboard",
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  refresh();
-}
 
 /** Administrators only: assigns a member's profile. The database re-checks (set_member_role). */
 export async function setMemberRole(formData: FormData) {

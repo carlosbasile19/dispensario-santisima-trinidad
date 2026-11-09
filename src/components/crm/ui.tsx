@@ -2,20 +2,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ROLE_INFO, type Role } from "@/lib/crm/roles";
-import type { AppointmentStatus, PaymentStatus } from "@/lib/crm/sample-data";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 
 // Building blocks of the admin platform. Same palette and type as the public
 // site (navy, teal, cream, Newsreader for titles), tuned for dense data.
-
-export const usd = (amount: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
-
-/** "08:30" → "8:30am" */
-export function clock(time: string) {
-  const [h, m] = time.split(":").map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")}${h < 12 ? "am" : "pm"}`;
-}
 
 export function PageHeader({
   eyebrow,
@@ -58,51 +48,27 @@ export function CardHeader({ title, hint, action }: { title: string; hint?: stri
   );
 }
 
-export function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-xl border border-line bg-white px-5 py-4">
-      <p className="text-[13px] text-muted">{label}</p>
-      <p className="mt-1.5 font-serif text-[32px] leading-none tracking-[-0.01em] tabular-nums">{value}</p>
-      {hint && <p className="mt-2 text-[13px] text-stone">{hint}</p>}
-    </div>
-  );
-}
-
-const buttonBase =
-  "inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium whitespace-nowrap transition-colors";
-
-export function Button({
-  children,
-  variant = "primary",
+/** Stands in for a list that has no records yet. */
+export function EmptyState({
   icon,
+  title,
+  children,
+  action,
 }: {
+  icon: IconName;
+  title: string;
   children: ReactNode;
-  variant?: "primary" | "secondary";
-  icon?: Parameters<typeof Icon>[0]["name"];
+  action?: ReactNode;
 }) {
-  const tone =
-    variant === "primary"
-      ? "bg-navy text-white hover:bg-teal"
-      : "border border-outline bg-white text-navy hover:border-navy";
   return (
-    <button type="button" className={`${buttonBase} ${tone}`}>
-      {icon && <Icon name={icon} className="size-4" />}
-      {children}
-    </button>
-  );
-}
-
-export function SearchField({ placeholder }: { placeholder: string }) {
-  return (
-    <label className="flex h-10 w-full max-w-xs items-center gap-2 rounded-lg border border-outline bg-white px-3 text-muted focus-within:border-navy">
-      <Icon name="search" className="size-4" />
-      <input
-        type="search"
-        placeholder={placeholder}
-        aria-label={placeholder}
-        className="w-full bg-transparent text-sm text-navy outline-none placeholder:text-stone"
-      />
-    </label>
+    <div className="flex flex-col items-center px-5 py-14 text-center">
+      <span className="grid size-12 place-items-center rounded-full bg-frost text-navy">
+        <Icon name={icon} className="size-5" />
+      </span>
+      <p className="mt-4 text-[15px] font-medium">{title}</p>
+      <p className="mt-1 max-w-[46ch] text-sm text-muted">{children}</p>
+      {action && <div className="mt-5">{action}</div>}
+    </div>
   );
 }
 
@@ -124,31 +90,6 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
   );
 }
 
-const STATUS: Record<AppointmentStatus, { label: string; tone: Tone }> = {
-  pendiente: { label: "Por confirmar", tone: "outline" },
-  confirmada: { label: "Confirmada", tone: "navy" },
-  en_sala: { label: "En sala", tone: "teal" },
-  en_consulta: { label: "En consulta", tone: "solid" },
-  atendida: { label: "Atendida", tone: "neutral" },
-  no_asistio: { label: "No asistió", tone: "coral" },
-};
-
-export const statusLabel = (status: AppointmentStatus) => STATUS[status].label;
-
-export function StatusBadge({ status }: { status: AppointmentStatus }) {
-  return <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>;
-}
-
-const PAYMENT: Record<PaymentStatus, { label: string; tone: Tone }> = {
-  pagado: { label: "Pagado", tone: "neutral" },
-  por_cobrar: { label: "Por cobrar", tone: "coral" },
-  cashea: { label: "Cashea", tone: "navy" },
-};
-
-export function PaymentBadge({ status }: { status: PaymentStatus }) {
-  return <Badge tone={PAYMENT[status].tone}>{PAYMENT[status].label}</Badge>;
-}
-
 export function RoleBadge({ role }: { role: Role }) {
   const tone: Tone = role === "admin" ? "solid" : role === "director" ? "teal" : role === "doctor" ? "navy" : "neutral";
   return <Badge tone={tone}>{ROLE_INFO[role].label}</Badge>;
@@ -166,21 +107,6 @@ export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md"
     <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full bg-frost font-medium text-navy ${dims}`}>
       {initials}
     </span>
-  );
-}
-
-/** Stands in for content the current role may not see. */
-export function Locked({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg border border-dashed border-outline bg-cream px-4 py-4">
-      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-sand text-stone">
-        <Icon name="lock" className="size-4" />
-      </span>
-      <div>
-        <p className="text-sm font-medium">{title}</p>
-        <p className="mt-0.5 text-[13px] text-muted">{children}</p>
-      </div>
-    </div>
   );
 }
 

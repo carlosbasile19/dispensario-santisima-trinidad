@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 export type IconName =
   | "home" | "calendar" | "patients" | "ledger" | "building" | "team"
-  | "lock" | "search" | "plus" | "chevron" | "check" | "clock" | "phone" | "eye" | "logout" | "download" | "file" | "key";
+  | "lock" | "plus" | "check" | "clock" | "phone" | "eye" | "logout" | "key";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z" />,
@@ -39,14 +39,7 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
     </>
   ),
-  search: (
-    <>
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="m16 16 4.5 4.5" />
-    </>
-  ),
   plus: <path d="M12 5v14M5 12h14" />,
-  chevron: <path d="m9 5.5 6.5 6.5L9 18.5" />,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   clock: (
     <>
@@ -61,8 +54,6 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="12" cy="12" r="2.8" />
     </>
   ),
-  download: <path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 19.5h14" />,
-  file: <path d="M13.5 3.5h-6a1.5 1.5 0 0 0-1.5 1.5v14a1.5 1.5 0 0 0 1.5 1.5h9a1.5 1.5 0 0 0 1.5-1.5V8l-4.5-4.5Zm0 0V8H18" />,
   key: (
     <>
       <circle cx="8" cy="15" r="4.5" />
