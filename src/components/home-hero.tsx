@@ -1,8 +1,8 @@
 import Image from "next/image";
 
 import doctor from "../../public/images/doctor.jpg";
-import eco from "../../public/images/eco.jpg";
-import lab from "../../public/images/lab.jpg";
+import eco from "../../public/images/ecosonograma.jpg";
+import family from "../../public/images/familia.jpg";
 import casheaLogo from "../../public/images/cashea/logo.png";
 import { Eyebrow, PrimaryButton, container, serif } from "@/components/site";
 
@@ -88,8 +88,8 @@ function HeroCentered({ feature }: { feature: boolean }) {
         }`}
       >
         <Image
-          src={lab}
-          alt="Muestras de laboratorio"
+          src={family}
+          alt="Madre e hija en la consulta pediátrica"
           className={`${side} ${feature ? "md:h-[300px]" : ""}`}
           sizes="(min-width: 768px) 30vw, 100vw"
         />
@@ -115,7 +115,7 @@ function HeroCentered({ feature }: { feature: boolean }) {
         )}
         <Image
           src={eco}
-          alt="Ecosonograma"
+          alt="Ecosonograma abdominal"
           className={`${side} ${feature ? "md:h-[300px]" : ""}`}
           sizes="(min-width: 768px) 30vw, 100vw"
         />

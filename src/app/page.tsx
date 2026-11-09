@@ -1,12 +1,12 @@
 import Image, { type StaticImageData } from "next/image";
 
-import consult from "../../public/images/consult.jpg";
-import consult2 from "../../public/images/consult2.jpg";
-import ecg from "../../public/images/ecg.jpg";
-import eco from "../../public/images/eco.jpg";
-import lab2 from "../../public/images/lab2.jpg";
-import senior from "../../public/images/senior.jpg";
-import vials from "../../public/images/vials.jpg";
+import checkup from "../../public/images/chequeo.jpg";
+import consult from "../../public/images/consulta-medica.jpg";
+import eco from "../../public/images/ecosonograma.jpg";
+import ecg from "../../public/images/electrocardiograma.jpg";
+import team from "../../public/images/equipo-medico.jpg";
+import bloodPressure from "../../public/images/tension-arterial.jpg";
+import bloodDraw from "../../public/images/toma-de-muestra.jpg";
 import casheaIcon from "../../public/images/cashea/icon.png";
 import casheaLogo from "../../public/images/cashea/logo.png";
 
@@ -40,8 +40,8 @@ const highlights = [
 
 const services: { image: StaticImageData; alt: string; title: string; text: string }[] = [
   {
-    image: consult2,
-    alt: "Consulta médica",
+    image: consult,
+    alt: "Médico examinando a un paciente en el consultorio",
     title: "Consultas médicas",
     text: "Medicina general e integral para todas las edades. Control de diabetes e hipertensión con seguimiento.",
   },
@@ -53,13 +53,13 @@ const services: { image: StaticImageData; alt: string; title: string; text: stri
   },
   {
     image: ecg,
-    alt: "Electrocardiograma",
+    alt: "Paciente con los electrodos del electrocardiograma",
     title: "Electrocardiograma",
     text: "Evaluación del ritmo y la salud de tu corazón, en minutos y sin dolor.",
   },
   {
-    image: lab2,
-    alt: "Laboratorio clínico",
+    image: bloodDraw,
+    alt: "Bioanalista tomando una muestra de sangre",
     title: "Laboratorio clínico",
     text: "Hematología, química sanguínea y examen de orina, procesados en el centro.",
   },
@@ -288,8 +288,8 @@ function Checkup() {
           </div>
         </div>
         <Image
-          src={vials}
-          alt="Muestras de sangre en el laboratorio"
+          src={checkup}
+          alt="Médico realizando un chequeo a un paciente"
           className="h-full min-h-[320px] w-full object-cover md:min-h-[520px]"
           sizes="(min-width: 768px) 50vw, 100vw"
         />
@@ -343,8 +343,8 @@ function OngoingCare() {
       className={`${container} grid grid-cols-1 items-center gap-10 pt-28 md:grid-cols-2 md:gap-16`}
     >
       <Image
-        src={senior}
-        alt="Médico conversando con paciente"
+        src={bloodPressure}
+        alt="Control de tensión arterial a una paciente"
         className="h-[320px] w-full rounded-md object-cover md:h-[520px]"
         sizes="(min-width: 768px) 50vw, 100vw"
       />
@@ -396,9 +396,9 @@ function Jornada() {
     <section id="jornada" className={`${container} scroll-mt-6 pt-28`}>
       <div className="grid grid-cols-1 overflow-hidden rounded-md border border-line md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <Image
-          src={consult}
-          alt="Médica atendiendo a un paciente"
-          className="h-full min-h-[280px] w-full object-cover object-[60%_center] md:min-h-[360px]"
+          src={team}
+          alt="Equipo médico del centro"
+          className="h-full min-h-[280px] w-full object-cover object-[50%_30%] md:min-h-[360px]"
           sizes="(min-width: 768px) 45vw, 100vw"
         />
         <div className="flex flex-col justify-center gap-[18px] bg-white p-6 sm:p-12">
