@@ -22,8 +22,9 @@ export type Permissions = {
   documents: Scope;
   /** Book, move and check in appointments; register patients. */
   manageSchedule: boolean;
-  /** Take payments at the front desk. */
+  /** Take payments at the front desk and set today's BCV rate. */
   collectPayments: boolean;
+  /** Contabilidad: the price list, any day's BCV rate, voiding payments. */
   accounting: boolean;
   management: boolean;
   members: boolean;
@@ -145,14 +146,14 @@ export const PERMISSION_MATRIX: { group: string; rows: { label: string; level: (
         },
       },
       { label: "Ver y descargar documentos", level: (r) => scopeLevel(can(r).documents) },
-      { label: "Cobrar en recepción", level: (r) => (can(r).collectPayments ? "full" : "none") },
+      { label: "Cobrar en recepción y cargar la tasa BCV del día", level: (r) => (can(r).collectPayments ? "full" : "none") },
     ],
   },
   {
     group: "Administración",
     rows: [
-      { label: "Contabilidad", level: (r) => (can(r).accounting ? "full" : "none") },
-      { label: "Gestión del centro (servicios, precios, horarios)", level: (r) => (can(r).management ? "full" : "none") },
+      { label: "Contabilidad: tarifas, tasas BCV y anular cobros", level: (r) => (can(r).accounting ? "full" : "none") },
+      { label: "Gestión del centro", level: (r) => (can(r).management ? "full" : "none") },
       { label: "Miembros y permisos", level: (r) => (can(r).members ? "full" : "none") },
     ],
   },
