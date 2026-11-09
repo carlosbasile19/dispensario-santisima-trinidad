@@ -199,22 +199,3 @@ export const SERVICES: Service[] = [
   { area: "Bioanálisis", name: "Perfil 20", minutes: 15, price: 18 },
   { area: "Bioanálisis", name: "Examen de orina", minutes: 15, price: 4 },
 ];
-
-export type Member = {
-  name: string;
-  email: string;
-  role: "doctor" | "director" | "staff" | "admin";
-  area: string;
-  status: "activo" | "invitado";
-  lastSeen: string;
-};
-
-export const MEMBERS: Member[] = [
-  { name: "Dr. José Morales", email: "jmorales@santisimatrinidad.example", role: "director", area: "Medicina general", status: "activo", lastSeen: "Hoy, 7:12am" },
-  { name: "Dra. Andreína Rojas", email: "arojas@santisimatrinidad.example", role: "doctor", area: "Odontología", status: "activo", lastSeen: "Hoy, 7:48am" },
-  { name: "Dr. Luis Carvajal", email: "lcarvajal@santisimatrinidad.example", role: "doctor", area: "Estudios", status: "activo", lastSeen: "Hoy, 7:25am" },
-  { name: "Lcda. María Guevara", email: "mguevara@santisimatrinidad.example", role: "doctor", area: "Bioanálisis", status: "activo", lastSeen: "Hoy, 7:05am" },
-  { name: "Yuleidy Pérez", email: "recepcion@santisimatrinidad.example", role: "staff", area: "Recepción", status: "activo", lastSeen: "Hoy, 7:01am" },
-  { name: "Keila Hernández", email: "khernandez@santisimatrinidad.example", role: "staff", area: "Recepción", status: "invitado", lastSeen: "Invitación enviada" },
-  { name: "Administración", email: "admin@santisimatrinidad.example", role: "admin", area: "Administración", status: "activo", lastSeen: "Ayer, 4:30pm" },
-];

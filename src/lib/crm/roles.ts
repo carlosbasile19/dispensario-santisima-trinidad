@@ -101,7 +101,7 @@ export const ROLE_INFO: Record<
 
 export const can = (role: Role) => ROLE_INFO[role].permissions;
 
-export type NavIcon = "home" | "calendar" | "patients" | "ledger" | "building" | "team";
+export type NavIcon = "home" | "calendar" | "patients" | "ledger" | "building" | "team" | "key";
 export type NavItem = { href: string; label: string; icon: NavIcon };
 export type NavGroup = { title: string; items: NavItem[] };
 
@@ -123,6 +123,7 @@ export function navFor(role: Role): NavGroup[] {
   if (p.management) adminItems.push({ href: "/dashboard/gestion", label: "Gestión", icon: "building" });
   if (p.members) adminItems.push({ href: "/dashboard/miembros", label: "Miembros", icon: "team" });
   if (adminItems.length) groups.push({ title: "Administración", items: adminItems });
+  groups.push({ title: "Cuenta", items: [{ href: "/dashboard/cuenta", label: "Mi cuenta", icon: "key" }] });
   return groups;
 }
 

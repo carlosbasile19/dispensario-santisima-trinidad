@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 export type IconName =
   | "home" | "calendar" | "patients" | "ledger" | "building" | "team"
-  | "lock" | "search" | "plus" | "chevron" | "check" | "clock" | "phone" | "eye" | "logout" | "download" | "file";
+  | "lock" | "search" | "plus" | "chevron" | "check" | "clock" | "phone" | "eye" | "logout" | "download" | "file" | "key";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z" />,
@@ -63,6 +63,12 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   download: <path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 19.5h14" />,
   file: <path d="M13.5 3.5h-6a1.5 1.5 0 0 0-1.5 1.5v14a1.5 1.5 0 0 0 1.5 1.5h9a1.5 1.5 0 0 0 1.5-1.5V8l-4.5-4.5Zm0 0V8H18" />,
+  key: (
+    <>
+      <circle cx="8" cy="15" r="4.5" />
+      <path d="m11.5 11.5 8-8M16 7l2.5 2.5M13.5 9.5 15 11" />
+    </>
+  ),
   logout: <path d="M14.5 4.5H18a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-3.5M10 16l-4-4 4-4M6 12h9.5" />,
 };
 

@@ -40,11 +40,12 @@ src/
     (auth)/login/             # email + password sign-in / sign-up (Server Actions)
     auth/confirm/route.ts     # email-link + OAuth callback (PKCE code or token_hash)
     auth/error/               # invalid/expired link page
-    dashboard/                # admin platform (first design, sample data): Inicio, Agenda,
-                              # Pacientes, Contabilidad, Gestión, Miembros
+    dashboard/                # admin platform: Inicio, Agenda, Pacientes, Contabilidad,
+                              # Gestión, Miembros, Mi cuenta
+    acceso-pendiente/         # signed-in account with no role yet
   lib/crm/
     roles.ts                  # the four roles and what each may see (single source)
-    viewer.ts                 # current user + role; scoping and permission helpers
+    viewer.ts                 # current member + role from the database; permission helpers
     sample-data.ts            # invented data for the design phase
   components/crm/             # platform UI: sidebar, cards, badges, icons
 supabase/
@@ -59,9 +60,14 @@ supabase/
 - With Cache Components on, anything that reads cookies (including the Supabase server client) must render inside `<Suspense>`.
 - To protect a new route section, add its prefix to `PROTECTED_PREFIXES` in `src/lib/supabase/proxy.ts` *and* call `requireUser()` in it.
 
-## Admin platform (design phase)
+## Admin platform
 
-`/dashboard` is the first design of the clinic's admin platform. It runs on invented data in `src/lib/crm/sample-data.ts`, and the role (médico, director médico, personal operativo, administrador) comes from the "Ver como" bar at the top, stored in a cookie. Before real patient data is added, the role must come from the database and be enforced by RLS, and the preview bar must be removed (see `src/lib/crm/viewer.ts`).
+`/dashboard` is the clinic's admin platform. Its screens still run on invented data in `src/lib/crm/sample-data.ts`; accounts, roles and sign-in are real.
+
+- **Roles.** Each member has one role on `profiles.role` (`doctor`, `director`, `staff`, `admin`); what each may see is defined once in `src/lib/crm/roles.ts`. A signed-in account with no role lands on `/acceso-pendiente`. Members cannot change their own role: only administrators can, from Miembros (`set_member_role`).
+- **No public sign-up.** Accounts are created by administrators. `scripts/create-members.mjs` creates the first ones with temporary passwords (needs `SUPABASE_SECRET_KEY`). Turn off "Allow new users to sign up" in Supabase → Authentication so the API matches the UI.
+- **Passkeys.** Members add them in Mi cuenta and can then use "Entrar con passkey". In Supabase → Authentication, enable passkeys and set the relying party ID to the production domain (no scheme) and its origin to `https://<production-domain>`. Passkeys are bound to that domain, so they do not work on preview deployments.
+- **Ver como.** Administrators can preview the platform as another profile. It only narrows what they see.
 
 ## Database rules
 

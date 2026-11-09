@@ -37,7 +37,7 @@ export default function DashboardLayout({ children }: LayoutProps<"/dashboard">)
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Suspense fallback={<div className="h-11 border-b border-line" />}>
+        <Suspense fallback={null}>
           <PreviewBar />
         </Suspense>
         <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 py-8 sm:px-8 lg:py-10">
@@ -76,15 +76,16 @@ async function Sidebar() {
   );
 }
 
-// Design-review tool, not part of the product: switches the role being
-// previewed. It goes away when roles come from the database.
+// Administrators only: previews the platform as another profile. Everyone
+// else gets no bar; their profile comes from the database and cannot change.
 async function PreviewBar() {
   const viewer = await getViewer();
+  if (viewer.realRole !== "admin") return null;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-frost/60 px-4 py-2 sm:px-8">
       <p className="flex items-center gap-1.5 text-[12px] tracking-[0.08em] text-navy uppercase">
         <Icon name="eye" className="size-4" />
-        Vista previa · ver como
+        Ver como
       </p>
       <form action={setPreviewRole} className="flex flex-wrap gap-1">
         {ROLES.map((role) => (
@@ -102,7 +103,7 @@ async function PreviewBar() {
           </button>
         ))}
       </form>
-      <p className="ml-auto hidden text-[12px] text-muted xl:block">Datos de ejemplo · {viewer.email}</p>
+      <p className="ml-auto hidden text-[12px] text-muted xl:block">Datos de ejemplo</p>
     </div>
   );
 }
