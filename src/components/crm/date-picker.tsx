@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
-import { addDays, clinicToday } from "@/lib/crm/clinic";
+import { addDays, clinicDayOf } from "@/lib/crm/clinic";
 import { panelClass, useFloatingPanel } from "./floating";
 import { Icon } from "./icons";
 import { Select, type SelectOption } from "./select";
@@ -88,7 +88,7 @@ export function DatePicker({
   useFloatingPanel({ open, triggerRef, panelRef, onDismiss: dismiss, matchWidth: false, maxHeight: 420 });
 
   const openPanel = () => {
-    const now = clinicToday();
+    const now = clinicDayOf(new Date());
     setToday(now);
     setFocused(value || (outOfRange(now) ? (max && now > max ? max : (min ?? now)) : now));
     focusGrid.current = true;

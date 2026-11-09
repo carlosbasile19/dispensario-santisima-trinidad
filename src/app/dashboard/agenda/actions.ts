@@ -210,7 +210,7 @@ export async function setExchangeRate(_prev: FormState, formData: FormData): Pro
   const day = formData.get("day");
   const rate = parseRate(String(formData.get("rate") ?? ""));
   if (!isIsoDate(day)) return { error: "Elige el día." };
-  const allowed = viewer.permissions.accounting || (viewer.permissions.collectPayments && day === clinicToday());
+  const allowed = viewer.permissions.accounting || (viewer.permissions.collectPayments && day === (await clinicToday()));
   if (!allowed) return { error: "Tu perfil solo puede cargar la tasa del día de hoy." };
   // Up to 7 integer digits keeps the rate within 15 significant digits.
   if (!rate || rate >= 10n ** 15n) return { error: "Escribe la tasa en bolívares por dólar, con hasta 8 decimales." };

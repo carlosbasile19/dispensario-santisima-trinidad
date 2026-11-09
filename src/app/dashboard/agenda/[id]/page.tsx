@@ -54,7 +54,7 @@ export default async function AppointmentPage({ params }: PageProps<"/dashboard/
   const p = viewer.permissions;
   const money = p.collectPayments || p.accounting;
   const manage = p.manageSchedule;
-  const today = clinicToday();
+  const today = await clinicToday();
   const day = localDay(appointment.starts_at);
   const supabase = await createClient();
 

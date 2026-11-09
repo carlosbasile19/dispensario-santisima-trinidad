@@ -51,7 +51,7 @@ type SyncDeps = {
 };
 
 export async function syncBcvRates(deps: SyncDeps = {}): Promise<SyncReport> {
-  const today = deps.today ?? clinicToday();
+  const today = deps.today ?? (await clinicToday());
   const report: SyncReport = { ok: false, today, published: null, recorded: [], errors: [] };
   const admin = deps.client === undefined ? createAdminClient() : deps.client;
   if (!admin) {

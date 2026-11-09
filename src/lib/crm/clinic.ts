@@ -1,6 +1,8 @@
 // Vocabulary and calendar of the clinic, shared by server and client code.
 // The clinic runs on America/Caracas time; dates travel as "YYYY-MM-DD".
 
+import { io } from "next/cache";
+
 import type { IconName } from "@/components/crm/icons";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -107,8 +109,18 @@ const isoDay = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-/** Today in the clinic, "YYYY-MM-DD". Call only at request time. */
-export const clinicToday = () => isoDay.format(new Date());
+/**
+ * Today in the clinic, "YYYY-MM-DD". Awaits `io()` so the clock is read at
+ * request time: after a session read (`getViewer()`), Next.js may still be
+ * rendering the App Shell, and a bare `new Date()` there fails the prerender.
+ */
+export async function clinicToday() {
+  await io();
+  return clinicDayOf(new Date());
+}
+
+/** The clinic's calendar day of an instant, "YYYY-MM-DD". Safe in the browser (e.g. a picker's "Hoy"). */
+export const clinicDayOf = (instant: Date) => isoDay.format(instant);
 
 export const isIsoDate = (value: unknown): value is string =>
   typeof value === "string" &&
