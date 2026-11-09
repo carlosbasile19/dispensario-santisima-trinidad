@@ -7,15 +7,22 @@ import { Icon, type IconName } from "./icons";
 // Building blocks of the admin platform. Same palette and type as the public
 // site (navy, teal, cream, Newsreader for titles), tuned for dense data.
 
+// Pages render their header and the frame of each card from the signed-in
+// viewer, which every route's App Shell already has. Anything that reads the
+// database, the clinic clock or the URL streams into its own <Suspense>, with
+// one of the skeletons at the end of this file as its fallback, so dashboard
+// navigations paint at once. Text props take a node so a fallback can pass a
+// <Skeleton /> in place of a value.
+
 export function PageHeader({
   eyebrow,
   title,
   description,
   actions,
 }: {
-  eyebrow?: string;
-  title: string;
-  description?: string;
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
@@ -36,7 +43,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   return <section className={`rounded-xl border border-line bg-white ${className}`}>{children}</section>;
 }
 
-export function CardHeader({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
+export function CardHeader({ title, hint, action }: { title: ReactNode; hint?: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
       <div className="min-w-0">
@@ -131,3 +138,96 @@ export function NoAccess({ role, section }: { role: Role; section: string }) {
 
 export const th = "px-5 py-3 text-left text-[12px] font-medium tracking-[0.04em] text-stone uppercase whitespace-nowrap";
 export const td = "px-5 py-3.5 align-middle text-sm";
+
+/** One figure of a summary row: label, value and a short hint. */
+export function StatCard({ label, value, hint }: { label: string; value: ReactNode; hint: ReactNode }) {
+  return (
+    <Card className="px-5 py-4">
+      <p className="text-[12px] tracking-[0.04em] text-stone uppercase">{label}</p>
+      <p className="mt-1.5 font-mono text-xl">{value}</p>
+      <p className="mt-1 text-[13px] text-muted">{hint}</p>
+    </Card>
+  );
+}
+
+// Loading states ------------------------------------------------------------
+
+/**
+ * A pulsing bar in place of text that is still loading. It sits on the line
+ * of the text it replaces, so the element keeps its height.
+ */
+export function Skeleton({ className = "w-24" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block h-[0.85em] max-w-full animate-pulse rounded bg-sand align-middle ${className}`}
+    />
+  );
+}
+
+const Busy = () => <span className="sr-only">Cargando…</span>;
+
+/** Rows in place of a list or a table: two lines each, or one when `dense`. */
+export function RowsSkeleton({ rows = 3, dense = false }: { rows?: number; dense?: boolean }) {
+  return (
+    <div aria-busy="true">
+      <Busy />
+      <div className="divide-y divide-line">
+        {Array.from({ length: rows }, (_, i) =>
+          dense ? (
+            <div key={i} className="flex justify-between gap-4 px-5 py-2.5 text-sm">
+              <Skeleton className="w-20" />
+              <Skeleton className="w-24" />
+            </div>
+          ) : (
+            <div key={i} className="flex items-center gap-5 px-5 py-4">
+              <Skeleton className="w-14" />
+              <span className="flex min-w-0 flex-1 flex-col gap-2.5">
+                <Skeleton className="w-2/5" />
+                <Skeleton className="w-3/5" />
+              </span>
+              <Skeleton className="w-20" />
+            </div>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Labelled inputs in place of a form. Pass grid columns through `className`. */
+export function FormSkeleton({ fields = 1, className = "" }: { fields?: number; className?: string }) {
+  return (
+    <div aria-busy="true" className={`grid gap-4 ${className}`}>
+      <Busy />
+      {Array.from({ length: fields }, (_, i) => (
+        <div key={i} className="flex flex-col gap-1.5">
+          <Skeleton className="w-28 text-[13px]" />
+          <span className="h-10 rounded-lg border border-line bg-white" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Summary cards with their labels and the figures still loading. */
+export function StatCardsSkeleton({ labels }: { labels: readonly string[] }) {
+  return labels.map((label) => (
+    <StatCard key={label} label={label} value={<Skeleton className="w-20" />} hint={<Skeleton className="w-32" />} />
+  ));
+}
+
+/** The day picker of the agenda and of Contabilidad, before the day is known. */
+export function DayBarSkeleton() {
+  return (
+    <div aria-busy="true" className="flex flex-wrap items-center gap-2">
+      <Busy />
+      <span className="size-10 rounded-lg border border-outline bg-white" />
+      <span className="size-10 rounded-lg border border-outline bg-white" />
+      <h2 className="mr-auto px-2 text-lg font-medium">
+        <Skeleton className="w-52" />
+      </h2>
+      <span className="h-10 w-[200px] rounded-lg border border-outline bg-white" />
+    </div>
+  );
+}

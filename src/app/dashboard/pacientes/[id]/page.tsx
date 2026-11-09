@@ -1,24 +1,70 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { AppointmentList } from "@/components/crm/appointment-list";
 import { Icon } from "@/components/crm/icons";
-import { Avatar, Card, CardHeader, EmptyState, PageHeader } from "@/components/crm/ui";
+import { Avatar, Card, CardHeader, EmptyState, PageHeader, RowsSkeleton, Skeleton } from "@/components/crm/ui";
 import { UNBILLED_STATUSES, ageOn, clinicToday, formatDay, formatDocument, isUuid, localDay, patientName } from "@/lib/crm/clinic";
 import { getBalances, getPatientAppointments, getProfessionals } from "@/lib/crm/data";
 import { formatUsd } from "@/lib/crm/money";
-import { getViewer } from "@/lib/crm/viewer";
+import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { PatientForm } from "../patient-form";
 
 export const metadata: Metadata = { title: "Paciente" };
 
+type Params = PageProps<"/dashboard/pacientes/[id]">["params"];
+
 // A patient's page: identification and contact, their visits and, for those
 // who handle money, what they still owe. RLS hides patients a doctor has no
-// service with, so those land on not-found.
+// service with, so those land on not-found. All of it comes from the patient,
+// so the App Shell has only the frame of the cards; the record streams in.
 export default async function PatientPage({ params }: PageProps<"/dashboard/pacientes/[id]">) {
   const viewer = await getViewer();
+  return (
+    <Suspense fallback={<PatientSkeleton />}>
+      <Patient params={params} viewer={viewer} />
+    </Suspense>
+  );
+}
+
+function PatientSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader eyebrow="Pacientes" title={<Skeleton className="w-72" />} description={<Skeleton className="w-24" />} />
+      <div className="grid items-start gap-6 xl:grid-cols-[1fr_380px]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card>
+            <CardHeader title="Próximas citas" />
+            <RowsSkeleton rows={1} />
+          </Card>
+          <Card>
+            <CardHeader title="Historial" hint="Citas anteriores, de la más reciente a la más antigua" />
+            <RowsSkeleton rows={3} />
+          </Card>
+        </div>
+        <Card>
+          <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+            <span className="size-9 shrink-0 animate-pulse rounded-full bg-sand" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">
+                <Skeleton className="w-40" />
+              </p>
+              <p className="text-[13px] text-muted">
+                <Skeleton className="w-32" />
+              </p>
+            </div>
+          </div>
+          <RowsSkeleton rows={6} dense />
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
 

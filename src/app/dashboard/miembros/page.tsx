@@ -1,9 +1,21 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { Icon } from "@/components/crm/icons";
-import { Avatar, Badge, Card, CardHeader, NoAccess, PageHeader, RoleBadge, td, th } from "@/components/crm/ui";
+import {
+  Avatar,
+  Badge,
+  Card,
+  CardHeader,
+  NoAccess,
+  PageHeader,
+  RoleBadge,
+  RowsSkeleton,
+  Skeleton,
+  td,
+  th,
+} from "@/components/crm/ui";
 import { PERMISSION_MATRIX, ROLES, ROLE_INFO } from "@/lib/crm/roles";
-import { getCurrentProfile } from "@/lib/auth";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { setMemberRole } from "../actions";
@@ -23,16 +35,10 @@ const joined = new Intl.DateTimeFormat("es-VE", { day: "numeric", month: "short"
 // Miembros (administrators only): the real accounts of the platform, with the
 // profile of each, and exactly what each profile can see. RLS lets only
 // administrators read other members; the matrix comes from lib/crm/roles.
+// Only the team list streams in.
 export default async function MembersPage() {
   const viewer = await getViewer();
   if (!viewer.permissions.members) return <NoAccess role={viewer.role} section="Miembros" />;
-
-  const supabase = await createClient();
-  const [self, { data }] = await Promise.all([
-    getCurrentProfile(),
-    supabase.from("profiles").select("id, email, full_name, role, created_at").order("created_at"),
-  ]);
-  const members = data ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -48,76 +54,16 @@ export default async function MembersPage() {
       </Card>
 
       <Card className="overflow-x-auto">
-        <CardHeader title="Equipo" hint={`${members.length} ${members.length === 1 ? "persona" : "personas"}`} />
-        <table className="w-full min-w-[920px] border-collapse">
-          <thead>
-            <tr className="border-b border-line">
-              <th className={th}>Miembro</th>
-              <th className={th}>Perfil</th>
-              <th className={th}>Estado</th>
-              <th className={th}>Alta</th>
-              <th className={th}>Acceso</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {members.map((m) => {
-              const name = m.full_name?.trim() || m.email || "Sin nombre";
-              return (
-                <tr key={m.id}>
-                  <td className={td}>
-                    <span className="flex items-center gap-3">
-                      <Avatar name={name} />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{name}</span>
-                        <span className="block truncate text-[13px] text-muted">{m.email}</span>
-                      </span>
-                    </span>
-                  </td>
-                  <td className={td}>
-                    {m.id === self?.id ? (
-                      <span className="flex items-center gap-2">
-                        {m.role && <RoleBadge role={m.role} />}
-                        <span className="text-[13px] text-stone">Tú</span>
-                      </span>
-                    ) : (
-                      <form action={setMemberRole} className="flex items-center gap-2">
-                        <input type="hidden" name="member" value={m.id} />
-                        <select
-                          name="role"
-                          defaultValue={m.role ?? ""}
-                          aria-label={`Perfil de ${name}`}
-                          className="h-9 rounded-lg border border-outline bg-white px-2 text-sm"
-                        >
-                          {!m.role && (
-                            <option value="" disabled>
-                              Sin perfil
-                            </option>
-                          )}
-                          {ROLES.map((role) => (
-                            <option key={role} value={role}>
-                              {ROLE_INFO[role].label}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="submit"
-                          className="h-9 rounded-lg border border-outline px-3 text-[13px] font-medium hover:border-navy"
-                        >
-                          Guardar
-                        </button>
-                      </form>
-                    )}
-                  </td>
-                  <td className={td}>
-                    <Badge tone={m.role ? "teal" : "outline"}>{m.role ? "Activo" : "Sin acceso"}</Badge>
-                  </td>
-                  <td className={`${td} text-ink whitespace-nowrap`}>{joined.format(new Date(m.created_at))}</td>
-                  <td className={td}>{m.id !== self?.id && <ResetPassword memberId={m.id} />}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <Suspense
+          fallback={
+            <>
+              <CardHeader title="Equipo" hint={<Skeleton className="w-20" />} />
+              <RowsSkeleton />
+            </>
+          }
+        >
+          <Team selfId={viewer.id} />
+        </Suspense>
       </Card>
 
       <Card className="overflow-x-auto">
@@ -166,5 +112,87 @@ export default async function MembersPage() {
         </table>
       </Card>
     </div>
+  );
+}
+
+/** Every member with their profile; `selfId` (the viewer) can't change their own. */
+async function Team({ selfId }: { selfId: string }) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("id, email, full_name, role, created_at").order("created_at");
+  const members = data ?? [];
+
+  return (
+    <>
+      <CardHeader title="Equipo" hint={`${members.length} ${members.length === 1 ? "persona" : "personas"}`} />
+      <table className="w-full min-w-[920px] border-collapse">
+        <thead>
+          <tr className="border-b border-line">
+            <th className={th}>Miembro</th>
+            <th className={th}>Perfil</th>
+            <th className={th}>Estado</th>
+            <th className={th}>Alta</th>
+            <th className={th}>Acceso</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {members.map((m) => {
+            const name = m.full_name?.trim() || m.email || "Sin nombre";
+            return (
+              <tr key={m.id}>
+                <td className={td}>
+                  <span className="flex items-center gap-3">
+                    <Avatar name={name} />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{name}</span>
+                      <span className="block truncate text-[13px] text-muted">{m.email}</span>
+                    </span>
+                  </span>
+                </td>
+                <td className={td}>
+                  {m.id === selfId ? (
+                    <span className="flex items-center gap-2">
+                      {m.role && <RoleBadge role={m.role} />}
+                      <span className="text-[13px] text-stone">Tú</span>
+                    </span>
+                  ) : (
+                    <form action={setMemberRole} className="flex items-center gap-2">
+                      <input type="hidden" name="member" value={m.id} />
+                      <select
+                        name="role"
+                        defaultValue={m.role ?? ""}
+                        aria-label={`Perfil de ${name}`}
+                        className="h-9 rounded-lg border border-outline bg-white px-2 text-sm"
+                      >
+                        {!m.role && (
+                          <option value="" disabled>
+                            Sin perfil
+                          </option>
+                        )}
+                        {ROLES.map((role) => (
+                          <option key={role} value={role}>
+                            {ROLE_INFO[role].label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="h-9 rounded-lg border border-outline px-3 text-[13px] font-medium hover:border-navy"
+                      >
+                        Guardar
+                      </button>
+                    </form>
+                  )}
+                </td>
+                <td className={td}>
+                  <Badge tone={m.role ? "teal" : "outline"}>{m.role ? "Activo" : "Sin acceso"}</Badge>
+                </td>
+                <td className={`${td} text-ink whitespace-nowrap`}>{joined.format(new Date(m.created_at))}</td>
+                <td className={td}>{m.id !== selfId && <ResetPassword memberId={m.id} />}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </>
   );
 }

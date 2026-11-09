@@ -1,12 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { PaymentBadge } from "@/components/crm/appointment-list";
 import { ActionForm, Field, SubmitButton } from "@/components/crm/forms";
 import { inputClass } from "@/components/crm/styles";
 import { RateForm } from "@/components/crm/rate-form";
-import { Badge, Card, CardHeader, PageHeader, td, th } from "@/components/crm/ui";
+import {
+  Badge,
+  Card,
+  CardHeader,
+  FormSkeleton,
+  PageHeader,
+  RowsSkeleton,
+  Skeleton,
+  td,
+  th,
+} from "@/components/crm/ui";
 import {
   AREA_LABEL,
   DURATIONS,
@@ -28,7 +39,7 @@ import {
 } from "@/lib/crm/clinic";
 import { getAppointment, getBalances, getProfessionals, getRate, getRecentRates, getServices } from "@/lib/crm/data";
 import { formatBs, formatRate, formatUsd, toCents, toRate, usdToBs } from "@/lib/crm/money";
-import { getViewer } from "@/lib/crm/viewer";
+import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { VoidPayment } from "../../contabilidad/void-payment";
 import { rescheduleAppointment, saveAppointmentNotes, setAppointmentStatus } from "../actions";
@@ -38,10 +49,65 @@ export const metadata: Metadata = { title: "Cita" };
 
 const paidAt = new Intl.DateTimeFormat("es-VE", { timeZone: "America/Caracas", hour: "numeric", minute: "2-digit" });
 
+type Params = PageProps<"/dashboard/agenda/[id]">["params"];
+
 // One visit: its services (each with professional and price), status, time,
 // patient and, for those who handle money, the charge and its payments.
+// Everything on it comes from the appointment, so the App Shell has only the
+// frame of the cards this viewer gets; the visit streams in.
 export default async function AppointmentPage({ params }: PageProps<"/dashboard/agenda/[id]">) {
   const viewer = await getViewer();
+  return (
+    <Suspense fallback={<AppointmentSkeleton viewer={viewer} />}>
+      <Appointment params={params} viewer={viewer} />
+    </Suspense>
+  );
+}
+
+function AppointmentSkeleton({ viewer }: { viewer: Viewer }) {
+  const p = viewer.permissions;
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        eyebrow={<Skeleton className="w-56" />}
+        title={<Skeleton className="w-72" />}
+        description={<Skeleton className="w-52" />}
+      />
+      <div className="grid items-start gap-6 xl:grid-cols-[1fr_380px]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card>
+            <CardHeader title="Servicios" hint={<Skeleton className="w-32" />} />
+            <RowsSkeleton rows={2} />
+          </Card>
+          {p.manageSchedule && (
+            <Card>
+              <CardHeader title="Estado y horario" hint={<Skeleton className="w-28" />} />
+              <FormSkeleton fields={3} className="px-5 py-5 sm:grid-cols-3" />
+            </Card>
+          )}
+          <Card>
+            <CardHeader title="Nota" hint="Para el equipo del centro; no es historia clínica" />
+            <RowsSkeleton rows={1} dense />
+          </Card>
+        </div>
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card>
+            <CardHeader title="Paciente" />
+            <RowsSkeleton rows={3} dense />
+          </Card>
+          {(p.collectPayments || p.accounting) && (
+            <Card>
+              <CardHeader title="Cobro" hint="En dólares o en bolívares a la tasa BCV del día" />
+              <RowsSkeleton rows={3} dense />
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function Appointment({ params, viewer }: { params: Params; viewer: Viewer }) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
 

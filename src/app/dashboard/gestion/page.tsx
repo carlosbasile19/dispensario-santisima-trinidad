@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 
-import { Card, CardHeader, EmptyState, NoAccess, PageHeader } from "@/components/crm/ui";
-import { AREA_LABEL, SERVICE_AREAS } from "@/lib/crm/clinic";
+import { Card, CardHeader, EmptyState, NoAccess, PageHeader, Skeleton } from "@/components/crm/ui";
+import { AREA_LABEL, SERVICE_AREAS, type ServiceArea } from "@/lib/crm/clinic";
 import { getServices } from "@/lib/crm/data";
 import { getViewer } from "@/lib/crm/viewer";
 import { ADDRESS_SHORT, HOURS, LEGAL_NAME, PHONE_DISPLAY, RIF } from "@/lib/site-config";
@@ -10,11 +11,11 @@ import { ADDRESS_SHORT, HOURS, LEGAL_NAME, PHONE_DISPLAY, RIF } from "@/lib/site
 export const metadata: Metadata = { title: "Gestión" };
 
 // Gestión (administrators only): how the centre is set up. The legal details
-// come from the site config; services and prices live in Contabilidad.
+// come from the site config; services and prices live in Contabilidad. Only
+// the service counts stream in.
 export default async function ManagementPage() {
   const viewer = await getViewer();
   if (!viewer.permissions.management) return <NoAccess role={viewer.role} section="Gestión" />;
-  const services = await getServices();
 
   return (
     <div className="flex flex-col gap-8">
@@ -37,25 +38,9 @@ export default async function ManagementPage() {
               )
             }
           />
-          {services.length ? (
-            <dl className="grid gap-4 px-5 py-4 text-sm sm:grid-cols-3">
-              {SERVICE_AREAS.map((area) => {
-                const list = services.filter((s) => s.area === area && s.active);
-                return (
-                  <div key={area}>
-                    <dt className="text-[12px] tracking-[0.04em] text-stone uppercase">{AREA_LABEL[area]}</dt>
-                    <dd className="mt-1">
-                      {list.length} {list.length === 1 ? "servicio activo" : "servicios activos"}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
-          ) : (
-            <EmptyState icon="building" title="Todavía no hay servicios cargados">
-              Carga los servicios y sus precios en Contabilidad, en la pestaña Tarifas.
-            </EmptyState>
-          )}
+          <Suspense fallback={<AreaCounts />}>
+            <ServiceCounts />
+          </Suspense>
         </Card>
 
         <Card>
@@ -78,4 +63,39 @@ export default async function ManagementPage() {
       </div>
     </div>
   );
+}
+
+/** Active services per area; without `active`, the counts are still loading. */
+function AreaCounts({ active }: { active?: Record<ServiceArea, number> }) {
+  return (
+    <dl aria-busy={active ? undefined : true} className="grid gap-4 px-5 py-4 text-sm sm:grid-cols-3">
+      {SERVICE_AREAS.map((area) => (
+        <div key={area}>
+          <dt className="text-[12px] tracking-[0.04em] text-stone uppercase">{AREA_LABEL[area]}</dt>
+          <dd className="mt-1">
+            {active ? (
+              `${active[area]} ${active[area] === 1 ? "servicio activo" : "servicios activos"}`
+            ) : (
+              <Skeleton className="w-32" />
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+async function ServiceCounts() {
+  const services = await getServices();
+  if (!services.length) {
+    return (
+      <EmptyState icon="building" title="Todavía no hay servicios cargados">
+        Carga los servicios y sus precios en Contabilidad, en la pestaña Tarifas.
+      </EmptyState>
+    );
+  }
+  const active = Object.fromEntries(
+    SERVICE_AREAS.map((area) => [area, services.filter((s) => s.area === area && s.active).length]),
+  ) as Record<ServiceArea, number>;
+  return <AreaCounts active={active} />;
 }

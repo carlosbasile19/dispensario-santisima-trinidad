@@ -8,6 +8,10 @@ import type { Role } from "./roles";
 // Reads shared by the platform pages. Every query runs as the signed-in
 // member, so RLS decides what comes back: a doctor only gets their own
 // appointments and patients, and only collectors get payments.
+//
+// None of this is cached across requests: pages read it fresh, inside
+// <Suspense>, so a Server Action's refresh() shows the change at once.
+// React's cache() only dedupes a read that several parts of one render share.
 
 export type Professional = { id: string; name: string; role: Role | null };
 
@@ -43,7 +47,7 @@ export const getRate = cache(async (day: string) => {
 });
 
 /** The most recent rates up to a day, newest first. */
-export async function getRecentRates(upTo: string, limit = 10) {
+export const getRecentRates = cache(async (upTo: string, limit = 10) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("exchange_rates")
@@ -52,7 +56,7 @@ export async function getRecentRates(upTo: string, limit = 10) {
     .order("rate_date", { ascending: false })
     .limit(limit);
   return data ?? [];
-}
+});
 
 const APPOINTMENT_FIELDS =
   "id, starts_at, starts_on, duration_minutes, status, notes, " +
