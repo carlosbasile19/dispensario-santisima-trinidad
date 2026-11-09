@@ -5,6 +5,7 @@ import { Avatar, Card, CardHeader, PageHeader, RoleBadge } from "@/components/cr
 import { ROLE_INFO } from "@/lib/crm/roles";
 import { getCurrentProfile } from "@/lib/auth";
 import { getViewer } from "@/lib/crm/viewer";
+import { AvatarForm } from "./avatar-form";
 import { Passkeys } from "./passkeys";
 import { PasswordForm } from "./password-form";
 
@@ -22,7 +23,7 @@ export default async function AccountPage() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-4 px-5 py-5">
-          <Avatar name={name} size="lg" />
+          <Avatar name={name} src={profile?.avatar_url} size="lg" />
           <div className="min-w-0 flex-1 basis-[200px]">
             <p className="truncate text-lg font-medium">{name}</p>
             <p className="truncate text-sm text-muted">{profile?.email}</p>
@@ -40,6 +41,11 @@ export default async function AccountPage() {
         <p className="border-t border-line px-5 py-3.5 text-[13px] text-muted">
           {ROLE_INFO[viewer.role].description} Solo un administrador puede cambiar tu perfil.
         </p>
+      </Card>
+
+      <Card>
+        <CardHeader title="Foto de perfil" hint="Se muestra en la barra lateral y en la lista de miembros" />
+        <AvatarForm name={name} src={profile?.avatar_url ?? null} />
       </Card>
 
       <Card>

@@ -127,7 +127,16 @@ export function RoleBadge({ role }: { role: Role }) {
   return <Badge tone={tone}>{ROLE_INFO[role].label}</Badge>;
 }
 
-export function Avatar({ name, size = "md" }: { name: string; size?: "xs" | "sm" | "md" | "lg" }) {
+/** Profile photo when the member uploaded one, otherwise their initials. */
+export function Avatar({
+  name,
+  src,
+  size = "md",
+}: {
+  name: string;
+  src?: string | null;
+  size?: "xs" | "sm" | "md" | "lg";
+}) {
   const initials = name
     .replace(/^(Dr\.|Dra\.|Lcda\.|Lcdo\.)\s+/, "")
     .split(" ")
@@ -136,6 +145,13 @@ export function Avatar({ name, size = "md" }: { name: string; size?: "xs" | "sm"
     .join("");
   const dims =
     size === "lg" ? "size-14 text-lg" : size === "sm" ? "size-7 text-[11px]" : size === "xs" ? "size-5 text-[9px]" : "size-9 text-[13px]";
+  if (src) {
+    return (
+      // Small, already-sized photos from Supabase Storage: a plain <img> needs no remotePatterns.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="" aria-hidden="true" className={`shrink-0 rounded-full bg-frost object-cover ${dims}`} />
+    );
+  }
   return (
     <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full bg-frost font-medium text-navy ${dims}`}>
       {initials}
