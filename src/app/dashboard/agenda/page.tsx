@@ -1,19 +1,31 @@
 import type { Metadata } from "next";
 import Form from "next/form";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { AppointmentList } from "@/components/crm/appointment-list";
 import { DatePicker } from "@/components/crm/date-picker";
 import { Icon } from "@/components/crm/icons";
 import { Select } from "@/components/crm/select";
 import { TodayRateCard } from "@/components/crm/today-rate";
-import { Card, CardHeader, EmptyState, PageHeader } from "@/components/crm/ui";
+import {
+  Card,
+  CardHeader,
+  DayBarSkeleton,
+  EmptyState,
+  FormSkeleton,
+  PageHeader,
+  RowsSkeleton,
+  Skeleton,
+} from "@/components/crm/ui";
 import { STATUS_INFO, addDays, clinicToday, formatDay, isIsoDate, isUuid, param } from "@/lib/crm/clinic";
 import { getAppointmentsOn, getBalances, getProfessionals, getRecentRates, getTodayRate } from "@/lib/crm/data";
 import { ROLE_INFO } from "@/lib/crm/roles";
-import { getViewer } from "@/lib/crm/viewer";
+import { getViewer, type Viewer } from "@/lib/crm/viewer";
 
 export const metadata: Metadata = { title: "Agenda" };
+
+type SearchParams = PageProps<"/dashboard/agenda">["searchParams"];
 
 const button =
   "inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-outline bg-white px-3 text-sm font-medium text-navy hover:border-navy";
@@ -21,34 +33,12 @@ const button =
 // Agenda: one clinic day at a time. A doctor sees only the visits where they
 // have a service (RLS); everyone else sees every consulting room and can
 // filter by professional. The front desk books from here and sets today's
-// BCV rate.
+// BCV rate. The header and the cards render from the viewer; the day (from
+// the URL or the clinic clock) and its appointments stream in.
 export default async function AgendaPage({ searchParams }: PageProps<"/dashboard/agenda">) {
   const viewer = await getViewer();
-  const params = await searchParams;
-  const today = await clinicToday();
-  const day = isIsoDate(param(params.fecha)) ? param(params.fecha) : today;
-  const filter = isUuid(param(params.profesional)) ? param(params.profesional) : "";
   const own = viewer.permissions.schedule === "own";
   const money = viewer.permissions.collectPayments;
-
-  const [all, professionals, todayRate, recentRates] = await Promise.all([
-    getAppointmentsOn(day),
-    getProfessionals(),
-    money ? getTodayRate(today) : null,
-    money ? getRecentRates(today, 2) : [],
-  ]);
-  const appointments = filter ? all.filter((a) => a.items.some((i) => i.professional_id === filter)) : all;
-  const balances = money ? await getBalances(appointments.map((a) => a.id)) : undefined;
-
-  const link = (target: string) => {
-    const query = new URLSearchParams({ fecha: target });
-    if (filter) query.set("profesional", filter);
-    return `/dashboard/agenda?${query}`;
-  };
-  const counts = appointments.reduce<Partial<Record<keyof typeof STATUS_INFO, number>>>((acc, a) => {
-    acc[a.status] = (acc[a.status] ?? 0) + 1;
-    return acc;
-  }, {});
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,94 +47,177 @@ export default async function AgendaPage({ searchParams }: PageProps<"/dashboard
         description={own ? "Las citas en las que atiendes un servicio." : "Las citas de todos los consultorios, día por día."}
         actions={
           viewer.permissions.manageSchedule && (
-            <Link
-              href={`/dashboard/agenda/nueva?fecha=${day}`}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-navy px-4 text-sm font-medium text-white hover:bg-teal"
-            >
-              <Icon name="plus" className="size-4" />
-              Nueva cita
-            </Link>
+            // Books for the day on screen once it is known; today until then.
+            <Suspense fallback={<NewAppointmentLink />}>
+              <NewAppointmentForDay searchParams={searchParams} />
+            </Suspense>
           )
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href={link(addDays(day, -1))} className={button} aria-label="Día anterior">
-          <Icon name="chevron-left" className="size-4" />
-        </Link>
-        <Link href={link(addDays(day, 1))} className={button} aria-label="Día siguiente">
-          <Icon name="chevron-right" className="size-4" />
-        </Link>
-        <h2 className="mr-auto px-2 text-lg font-medium first-letter:uppercase">
-          {formatDay(day)}
-          {day === today && <span className="ml-2 text-[13px] font-normal text-teal">Hoy</span>}
-        </h2>
-        <Form action="/dashboard/agenda" className="flex flex-wrap items-center gap-2">
-          <DatePicker name="fecha" defaultValue={day} aria-label="Ir al día" submitOnChange className="w-[200px]" />
-          {!own && professionals.list.length > 0 && (
-            <Select
-              name="profesional"
-              defaultValue={filter}
-              aria-label="Profesional"
-              submitOnChange
-              className="w-[230px]"
-              panelMinWidth={260}
-              searchPlaceholder="Buscar profesional…"
-              options={[
-                { value: "", label: "Todos los profesionales", icon: "team", description: "Todos los consultorios" },
-                ...professionals.list.map((p) => ({
-                  value: p.id,
-                  label: p.name,
-                  avatar: p.name,
-                  description: p.role ? ROLE_INFO[p.role].label : undefined,
-                })),
-              ]}
-            />
-          )}
-          {day !== today && (
-            <Link href={link(today)} className={button}>
-              Hoy
-            </Link>
-          )}
-        </Form>
-      </div>
+      <Suspense fallback={<DayBarSkeleton />}>
+        <DayBar searchParams={searchParams} own={own} />
+      </Suspense>
 
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_320px]">
         <Card>
-          <CardHeader
-            title={`${appointments.length} ${appointments.length === 1 ? "cita" : "citas"}`}
-            hint={
-              Object.entries(counts)
-                .map(([status, n]) => `${n} ${STATUS_INFO[status as keyof typeof STATUS_INFO].label.toLowerCase()}`)
-                .join(" · ") || undefined
+          <Suspense
+            fallback={
+              <>
+                <CardHeader title={<Skeleton className="w-20" />} hint={<Skeleton className="w-44" />} />
+                <RowsSkeleton />
+              </>
             }
-          />
-          {appointments.length ? (
-            <AppointmentList
-              appointments={appointments}
-              professionals={professionals.byId}
-              balances={balances}
-              highlight={own ? viewer.id : filter || undefined}
-            />
-          ) : (
-            <EmptyState
-              icon="calendar"
-              title="No hay citas este día"
-              action={
-                viewer.permissions.manageSchedule ? (
-                  <Link href={`/dashboard/agenda/nueva?fecha=${day}`} className="text-sm font-medium text-teal hover:text-navy">
-                    Agendar una cita
-                  </Link>
-                ) : undefined
-              }
-            >
-              {filter ? "Ninguna cita con ese profesional. Prueba con todos los profesionales." : "Cambia de día con las flechas o el calendario."}
-            </EmptyState>
-          )}
+          >
+            <DayAppointments searchParams={searchParams} viewer={viewer} />
+          </Suspense>
         </Card>
 
-        {money && <TodayRateCard today={today} rate={todayRate} recentRates={recentRates} />}
+        {money && (
+          <Suspense
+            fallback={
+              <Card>
+                <CardHeader title="Tasa BCV de hoy" hint={<Skeleton className="w-40" />} />
+                <FormSkeleton className="px-5 py-4" />
+              </Card>
+            }
+          >
+            <TodayRate />
+          </Suspense>
+        )}
       </div>
     </div>
   );
+}
+
+/** The day on screen (?fecha=, or today in the clinic) and the professional filter. */
+async function readAgendaQuery(searchParams: SearchParams) {
+  const [params, today] = await Promise.all([searchParams, clinicToday()]);
+  const day = isIsoDate(param(params.fecha)) ? param(params.fecha) : today;
+  const filter = isUuid(param(params.profesional)) ? param(params.profesional) : "";
+  return { today, day, filter };
+}
+
+function NewAppointmentLink({ day }: { day?: string }) {
+  return (
+    <Link
+      href={day ? `/dashboard/agenda/nueva?fecha=${day}` : "/dashboard/agenda/nueva"}
+      className="inline-flex h-10 items-center gap-2 rounded-lg bg-navy px-4 text-sm font-medium text-white hover:bg-teal"
+    >
+      <Icon name="plus" className="size-4" />
+      Nueva cita
+    </Link>
+  );
+}
+
+async function NewAppointmentForDay({ searchParams }: { searchParams: SearchParams }) {
+  const { day } = await readAgendaQuery(searchParams);
+  return <NewAppointmentLink day={day} />;
+}
+
+async function DayBar({ searchParams, own }: { searchParams: SearchParams; own: boolean }) {
+  const [{ today, day, filter }, professionals] = await Promise.all([readAgendaQuery(searchParams), getProfessionals()]);
+  const link = (target: string) => {
+    const query = new URLSearchParams({ fecha: target });
+    if (filter) query.set("profesional", filter);
+    return `/dashboard/agenda?${query}`;
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Link href={link(addDays(day, -1))} className={button} aria-label="Día anterior">
+        <Icon name="chevron-left" className="size-4" />
+      </Link>
+      <Link href={link(addDays(day, 1))} className={button} aria-label="Día siguiente">
+        <Icon name="chevron-right" className="size-4" />
+      </Link>
+      <h2 className="mr-auto px-2 text-lg font-medium first-letter:uppercase">
+        {formatDay(day)}
+        {day === today && <span className="ml-2 text-[13px] font-normal text-teal">Hoy</span>}
+      </h2>
+      <Form action="/dashboard/agenda" className="flex flex-wrap items-center gap-2">
+        <DatePicker name="fecha" defaultValue={day} aria-label="Ir al día" submitOnChange className="w-[200px]" />
+        {!own && professionals.list.length > 0 && (
+          <Select
+            name="profesional"
+            defaultValue={filter}
+            aria-label="Profesional"
+            submitOnChange
+            className="w-[230px]"
+            panelMinWidth={260}
+            searchPlaceholder="Buscar profesional…"
+            options={[
+              { value: "", label: "Todos los profesionales", icon: "team", description: "Todos los consultorios" },
+              ...professionals.list.map((p) => ({
+                value: p.id,
+                label: p.name,
+                avatar: p.name,
+                description: p.role ? ROLE_INFO[p.role].label : undefined,
+              })),
+            ]}
+          />
+        )}
+        {day !== today && (
+          <Link href={link(today)} className={button}>
+            Hoy
+          </Link>
+        )}
+      </Form>
+    </div>
+  );
+}
+
+async function DayAppointments({ searchParams, viewer }: { searchParams: SearchParams; viewer: Viewer }) {
+  const { day, filter } = await readAgendaQuery(searchParams);
+  const own = viewer.permissions.schedule === "own";
+  const money = viewer.permissions.collectPayments;
+
+  const [all, professionals] = await Promise.all([getAppointmentsOn(day), getProfessionals()]);
+  const appointments = filter ? all.filter((a) => a.items.some((i) => i.professional_id === filter)) : all;
+  const balances = money ? await getBalances(appointments.map((a) => a.id)) : undefined;
+  const counts = appointments.reduce<Partial<Record<keyof typeof STATUS_INFO, number>>>((acc, a) => {
+    acc[a.status] = (acc[a.status] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <>
+      <CardHeader
+        title={`${appointments.length} ${appointments.length === 1 ? "cita" : "citas"}`}
+        hint={
+          Object.entries(counts)
+            .map(([status, n]) => `${n} ${STATUS_INFO[status as keyof typeof STATUS_INFO].label.toLowerCase()}`)
+            .join(" · ") || undefined
+        }
+      />
+      {appointments.length ? (
+        <AppointmentList
+          appointments={appointments}
+          professionals={professionals.byId}
+          balances={balances}
+          highlight={own ? viewer.id : filter || undefined}
+        />
+      ) : (
+        <EmptyState
+          icon="calendar"
+          title="No hay citas este día"
+          action={
+            viewer.permissions.manageSchedule ? (
+              <Link href={`/dashboard/agenda/nueva?fecha=${day}`} className="text-sm font-medium text-teal hover:text-navy">
+                Agendar una cita
+              </Link>
+            ) : undefined
+          }
+        >
+          {filter ? "Ninguna cita con ese profesional. Prueba con todos los profesionales." : "Cambia de día con las flechas o el calendario."}
+        </EmptyState>
+      )}
+    </>
+  );
+}
+
+async function TodayRate() {
+  const today = await clinicToday();
+  const [todayRate, recentRates] = await Promise.all([getTodayRate(today), getRecentRates(today, 2)]);
+  return <TodayRateCard today={today} rate={todayRate} recentRates={recentRates} />;
 }
