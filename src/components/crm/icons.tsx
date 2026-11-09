@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 
 export type IconName =
   | "home" | "calendar" | "patients" | "ledger" | "building" | "team"
-  | "lock" | "plus" | "check" | "clock" | "phone" | "eye" | "logout" | "key";
+  | "lock" | "plus" | "check" | "clock" | "phone" | "eye" | "logout" | "key"
+  | "search" | "chevron-left" | "chevron-right" | "x" | "cash" | "tag";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z" />,
@@ -61,6 +62,28 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   logout: <path d="M14.5 4.5H18a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-3.5M10 16l-4-4 4-4M6 12h9.5" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </>
+  ),
+  "chevron-left": <path d="m14.5 6-6 6 6 6" />,
+  "chevron-right": <path d="m9.5 6 6 6-6 6" />,
+  x: <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />,
+  cash: (
+    <>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.6" />
+      <path d="M6 9.5v5M18 9.5v5" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.5 1.5 0 0 1 0 2.1l-6.2 6.2a1.5 1.5 0 0 1-2.1 0l-8.7-7.9Z" />
+      <circle cx="8" cy="8" r="1.4" />
+    </>
+  ),
 };
 
 export function Icon({ name, className = "size-[18px]" }: { name: IconName; className?: string }) {

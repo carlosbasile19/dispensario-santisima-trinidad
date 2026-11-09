@@ -5,6 +5,8 @@ import { getCurrentProfile, requireUser } from "@/lib/auth";
 import { can, isRole, type Permissions, type Role } from "./roles";
 
 export type Viewer = {
+  /** The member's profile id (the auth user id). */
+  id: string;
   /** The member's role, from their profile. */
   role: Role;
   permissions: Permissions;
@@ -26,5 +28,7 @@ export const getViewer = cache(async (): Promise<Viewer> => {
   const email = profile?.email ?? user.email;
   const name = profile?.full_name?.trim() || email || "Miembro";
 
-  return { role, permissions: can(role), name, firstName: name.split(" ")[0], email };
+  // "Dra. Lucía Méndez" is greeted as "Lucía".
+  const firstName = name.replace(/^(Dr|Dra|Lcda|Lcdo|Lic)\.\s+/i, "").split(" ")[0];
+  return { id: user.id, role, permissions: can(role), name, firstName, email };
 });
