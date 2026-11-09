@@ -32,7 +32,7 @@ export default async function PatientPage({ params }: PageProps<"/dashboard/paci
 
   const p = viewer.permissions;
   const money = p.collectPayments || p.accounting;
-  const today = clinicToday();
+  const today = await clinicToday();
   const [appointments, professionals] = await Promise.all([getPatientAppointments(id), getProfessionals()]);
   const balances = money ? await getBalances(appointments.map((a) => a.id)) : undefined;
   // What is owed for visits up to today; future visits are not due yet.

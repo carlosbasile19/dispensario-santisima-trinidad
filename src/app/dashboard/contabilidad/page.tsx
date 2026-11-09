@@ -35,7 +35,7 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
   const viewer = await getViewer();
   if (!viewer.permissions.accounting) return <NoAccess role={viewer.role} section="Contabilidad" />;
 
-  const today = clinicToday();
+  const today = await clinicToday();
   const requested = param((await searchParams).fecha);
   const day = isIsoDate(requested) ? requested : today;
   const supabase = await createClient();

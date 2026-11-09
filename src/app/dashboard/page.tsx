@@ -27,7 +27,7 @@ export default async function DashboardHome() {
   const p = viewer.permissions;
   const own = p.schedule === "own";
   const money = p.collectPayments;
-  const today = clinicToday();
+  const today = await clinicToday();
 
   const [appointments, professionals, rate, recentRates] = await Promise.all([
     getAppointmentsOn(today),
