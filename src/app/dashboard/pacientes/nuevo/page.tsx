@@ -16,6 +16,7 @@ export default async function NewPatientPage({ searchParams }: PageProps<"/dashb
   const params = await searchParams;
   const thenBook = param(params.agendar) === "1";
   const day = param(params.fecha);
+  const today = await clinicToday();
 
   return (
     <div className="flex max-w-[860px] flex-col gap-6">
@@ -30,7 +31,7 @@ export default async function NewPatientPage({ searchParams }: PageProps<"/dashb
       />
       <Card>
         <CardHeader title="Datos del paciente" hint="Solo los nombres y los apellidos son obligatorios" />
-        <PatientForm thenBook={thenBook} day={isIsoDate(day) ? day : undefined} today={clinicToday()} />
+        <PatientForm thenBook={thenBook} day={isIsoDate(day) ? day : undefined} today={today} />
       </Card>
     </div>
   );

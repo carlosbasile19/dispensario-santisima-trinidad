@@ -18,7 +18,7 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/d
   if (!viewer.permissions.manageSchedule) return <NoAccess role={viewer.role} section="Nueva cita" />;
 
   const params = await searchParams;
-  const today = clinicToday();
+  const today = await clinicToday();
   const day = isIsoDate(param(params.fecha)) ? param(params.fecha) : today;
   const patientId = param(params.paciente);
 

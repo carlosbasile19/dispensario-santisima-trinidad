@@ -22,7 +22,7 @@ const button =
 export default async function AgendaPage({ searchParams }: PageProps<"/dashboard/agenda">) {
   const viewer = await getViewer();
   const params = await searchParams;
-  const today = clinicToday();
+  const today = await clinicToday();
   const day = isIsoDate(param(params.fecha)) ? param(params.fecha) : today;
   const filter = isUuid(param(params.profesional)) ? param(params.profesional) : "";
   const own = viewer.permissions.schedule === "own";

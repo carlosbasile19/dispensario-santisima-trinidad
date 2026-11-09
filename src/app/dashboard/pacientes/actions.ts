@@ -43,7 +43,7 @@ export async function savePatient(_prev: FormState, formData: FormData): Promise
   }
 
   const birthDate = String(formData.get("birth_date") ?? "");
-  if (birthDate && (!isIsoDate(birthDate) || birthDate < "1900-01-01" || birthDate > clinicToday())) {
+  if (birthDate && (!isIsoDate(birthDate) || birthDate < "1900-01-01" || birthDate > (await clinicToday()))) {
     return { error: "Revisa la fecha de nacimiento." };
   }
   const sex = formData.get("sex");

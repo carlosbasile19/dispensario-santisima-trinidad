@@ -17,7 +17,7 @@ export default async function PatientsPage({ searchParams }: PageProps<"/dashboa
   const viewer = await getViewer();
   const query = param((await searchParams).q).trim().slice(0, 80);
   const own = viewer.permissions.schedule === "own";
-  const today = clinicToday();
+  const today = await clinicToday();
 
   const supabase = await createClient();
   const { data } = await supabase.rpc("search_patients", { query, max_rows: LIMIT });
