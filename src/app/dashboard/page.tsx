@@ -3,9 +3,17 @@ import Link from "next/link";
 
 import { AppointmentList } from "@/components/crm/appointment-list";
 import { Icon } from "@/components/crm/icons";
-import { RateForm } from "@/components/crm/rate-form";
-import { Card, CardHeader, EmptyState, PageHeader } from "@/components/crm/ui";
-import { UNBILLED_STATUSES, clinicToday, formatDay } from "@/lib/crm/clinic";
+import { TodayRateCard } from "@/components/crm/today-rate";
+import { Card, CardHeader, EmptyState, PageHeader, StatGrid, type Stat } from "@/components/crm/ui";
+import {
+  AREA_ICON,
+  AREA_LABEL,
+  SERVICE_AREAS,
+  UNBILLED_STATUSES,
+  clinicToday,
+  formatDay,
+  type AppointmentStatus,
+} from "@/lib/crm/clinic";
 import { getAppointmentsOn, getBalances, getProfessionals, getRecentRates, getTodayRate } from "@/lib/crm/data";
 import { formatRate, formatUsd, sumCents } from "@/lib/crm/money";
 import { getViewer } from "@/lib/crm/viewer";
@@ -19,9 +27,12 @@ const INTRO = {
   admin: "La operación de hoy: citas, cobros y la tasa BCV.",
 } as const;
 
-// Inicio: today at a glance. Everyone sees today's appointments (a doctor
-// only their own, via RLS); members who take payments also see today's BCV
-// rate and what has been charged and collected.
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+// Inicio: today at a glance, laid out like Agenda. A row of key figures, then
+// today's appointments (a doctor only their own, via RLS) beside a rail with
+// the day's services by area and, while it is missing, today's BCV rate for
+// the members who take payments.
 export default async function DashboardHome() {
   const viewer = await getViewer();
   const p = viewer.permissions;
@@ -36,16 +47,57 @@ export default async function DashboardHome() {
     money ? getRecentRates(today, 2) : [],
   ]);
   const balances = money ? await getBalances(appointments.map((a) => a.id)) : undefined;
+
+  const count = (...statuses: AppointmentStatus[]) => appointments.filter((a) => statuses.includes(a.status)).length;
+  const expected = count("scheduled", "confirmed");
+  const waiting = count("checked_in");
+  const dropped = count(...UNBILLED_STATUSES);
   const billed = appointments.filter((a) => !UNBILLED_STATUSES.includes(a.status));
   const charged = balances ? sumCents(billed.map((a) => balances.get(a.id)?.total ?? 0)) : 0n;
   const pending = balances ? sumCents(billed.map((a) => Math.max(0, balances.get(a.id)?.balance ?? 0))) : 0n;
-  const waiting = appointments.filter((a) => a.status === "checked_in").length;
+
+  // Everyone: how the day is going. Members who take payments: what is still
+  // owed and today's rate; the others: how many visits are done.
+  const stats: Stat[] = [
+    { label: "Citas de hoy", value: String(appointments.length), hint: expected ? `${expected} por llegar` : "Ninguna por llegar" },
+    { label: "En sala", value: String(waiting), hint: waiting ? "Pacientes que ya llegaron" : "Nadie en espera" },
+  ];
+  if (money) {
+    stats.push(
+      { label: "Por cobrar hoy", value: formatUsd(pending), hint: `De ${formatUsd(charged)} en servicios` },
+      rate
+        ? {
+            label: "Tasa BCV de hoy",
+            value: `Bs. ${formatRate(rate.bs_per_usd)}`,
+            hint: rate.source === "manual" ? "Cargada a mano" : "Automática, del BCV",
+          }
+        : { label: "Tasa BCV de hoy", value: "Sin cargar", hint: "Cárgala antes de cobrar", alert: true },
+    );
+  } else {
+    stats.push({
+      label: "Atendidas",
+      value: String(count("completed")),
+      hint: dropped ? plural(dropped, "cancelada o no asistió", "canceladas o no asistieron") : "Ninguna cancelada",
+    });
+  }
+
+  // The day's services by area: a doctor's own, everyone else's the whole centre's.
+  const services = billed.flatMap((a) =>
+    a.items
+      .filter((item) => !own || item.professional_id === viewer.id)
+      .map((item) => ({ area: item.service?.area, done: a.status === "completed" })),
+  );
+  const areas = SERVICE_AREAS.map((area) => {
+    const list = services.filter((s) => s.area === area);
+    return { area, total: list.length, done: list.filter((s) => s.done).length };
+  });
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow={`Hoy · ${formatDay(today)}`}
         title={`Buen día, ${viewer.firstName}`}
-        description={`${INTRO[viewer.role]} Hoy es ${formatDay(today)}.`}
+        description={INTRO[viewer.role]}
         actions={
           p.manageSchedule && (
             <Link
@@ -59,30 +111,15 @@ export default async function DashboardHome() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Citas de hoy", String(appointments.length), `${waiting} en sala ahora`],
-          ...(money
-            ? [
-                ["Por cobrar hoy", formatUsd(pending), `De ${formatUsd(charged)} en servicios`],
-                ["Tasa BCV de hoy", rate ? `Bs. ${formatRate(rate.bs_per_usd)}` : "Sin cargar", rate ? "Bolívares por dólar" : "Cárgala antes de cobrar"],
-              ]
-            : []),
-        ].map(([label, value, hint]) => (
-          <Card key={label} className="px-5 py-4">
-            <p className="text-[12px] tracking-[0.04em] text-stone uppercase">{label}</p>
-            <p className="mt-1.5 font-mono text-xl">{value}</p>
-            <p className="mt-1 text-[13px] text-muted">{hint}</p>
-          </Card>
-        ))}
-      </div>
+      <StatGrid stats={stats} />
 
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_320px]">
         <Card>
           <CardHeader
             title={own ? "Mi agenda de hoy" : "Agenda de hoy"}
+            hint={appointments.length ? `${plural(appointments.length, "cita", "citas")}, por hora` : "Ninguna cita agendada"}
             action={
-              <Link href="/dashboard/agenda" className="text-sm font-medium text-teal hover:text-navy">
+              <Link href="/dashboard/agenda" className="text-sm font-medium whitespace-nowrap text-teal hover:text-navy">
                 Ver agenda
               </Link>
             }
@@ -111,19 +148,34 @@ export default async function DashboardHome() {
           )}
         </Card>
 
-        {money && !rate && (
+        <div className="flex flex-col gap-6">
+          {/* The rate is a key figure above; its card only shows when it still has to be loaded. */}
+          {money && !rate && <TodayRateCard today={today} rate={rate} recentRates={recentRates} />}
+
           <Card>
-            <CardHeader title="Tasa BCV de hoy" hint="Hace falta para cobrar en bolívares y en dólares" />
-            <div className="px-5 py-4">
-              <RateForm
-                day={today}
-                current={null}
-                suggestion={recentRates.find((r) => r.rate_date !== today)?.bs_per_usd ?? null}
-                canFetch
-              />
-            </div>
+            <CardHeader title="Por área" hint={own ? "Tus servicios de hoy" : "Los servicios de hoy en el centro"} />
+            <ul className="divide-y divide-line">
+              {areas.map(({ area, total, done }) => (
+                <li key={area} className="flex items-center gap-3 px-5 py-3">
+                  <span
+                    className={`grid size-9 shrink-0 place-items-center rounded-full ${
+                      total ? "bg-frost text-navy" : "bg-sand text-stone"
+                    }`}
+                  >
+                    <Icon name={AREA_ICON[area]} className="size-[18px]" />
+                  </span>
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className={`text-sm font-medium ${total ? "" : "text-stone"}`}>{AREA_LABEL[area]}</p>
+                    <p className="mt-0.5 text-[12px] text-muted">
+                      {!total ? "Sin servicios hoy" : done ? plural(done, "atendido", "atendidos") : "Ninguno atendido aún"}
+                    </p>
+                  </div>
+                  <span className={`font-mono text-lg ${total ? "" : "text-stone"}`}>{total}</span>
+                </li>
+              ))}
+            </ul>
           </Card>
-        )}
+        </div>
       </div>
     </div>
   );

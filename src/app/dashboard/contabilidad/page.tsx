@@ -5,7 +5,7 @@ import Link from "next/link";
 import { DatePicker } from "@/components/crm/date-picker";
 import { Icon } from "@/components/crm/icons";
 import { RateForm } from "@/components/crm/rate-form";
-import { Card, CardHeader, EmptyState, NoAccess, PageHeader, td, th } from "@/components/crm/ui";
+import { Card, CardHeader, EmptyState, NoAccess, PageHeader, StatGrid, td, th } from "@/components/crm/ui";
 import {
   PAYMENT_METHODS,
   PAYMENT_METHOD_LIST,
@@ -120,25 +120,25 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
         </Form>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {[
-          ["Total cobrado", formatUsd(totalUsd), `${formatBs(totalBs)} a tasa BCV`],
-          ["Recibido en dólares", formatUsd(cashUsd), "Efectivo y Zelle"],
-          ["Recibido en bolívares", formatBs(cashBs), "Pago móvil, punto, transferencia y efectivo"],
-          [
-            "Financiado con Cashea",
-            formatUsd(casheaUsd),
-            cashea.length ? `${cashea.length} ${cashea.length === 1 ? "orden" : "órdenes"} · se cobra en cuotas` : "Sin órdenes este día",
-          ],
-          ["Tasa BCV del día", rate ? `Bs. ${formatRate(rate.bs_per_usd)}` : "Sin cargar", rate ? (rate.source === "manual" ? "Cargada a mano" : "Automática, del BCV") : "Bolívares por dólar"],
-        ].map(([label, value, hint]) => (
-          <Card key={label} className="px-5 py-4">
-            <p className="text-[12px] tracking-[0.04em] text-stone uppercase">{label}</p>
-            <p className="mt-1.5 font-mono text-xl">{value}</p>
-            <p className="mt-1 text-[13px] text-muted">{hint}</p>
-          </Card>
-        ))}
-      </div>
+      <StatGrid
+        stats={[
+          { label: "Total cobrado", value: formatUsd(totalUsd), hint: `${formatBs(totalBs)} a tasa BCV` },
+          { label: "Recibido en dólares", value: formatUsd(cashUsd), hint: "Efectivo y Zelle" },
+          { label: "Recibido en bolívares", value: formatBs(cashBs), hint: "Pago móvil, punto, transferencia y efectivo" },
+          {
+            label: "Financiado con Cashea",
+            value: formatUsd(casheaUsd),
+            hint: cashea.length ? `${cashea.length} ${cashea.length === 1 ? "orden" : "órdenes"} · se cobra en cuotas` : "Sin órdenes este día",
+          },
+          rate
+            ? {
+                label: "Tasa BCV del día",
+                value: `Bs. ${formatRate(rate.bs_per_usd)}`,
+                hint: rate.source === "manual" ? "Cargada a mano" : "Automática, del BCV",
+              }
+            : { label: "Tasa BCV del día", value: "Sin cargar", hint: "Bolívares por dólar", alert: true },
+        ]}
+      />
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <Card>

@@ -48,6 +48,38 @@ export function CardHeader({ title, hint, action }: { title: string; hint?: stri
   );
 }
 
+/** One key figure of a page (Inicio, Contabilidad). */
+export type Stat = {
+  label: string;
+  value: string;
+  hint: string;
+  /** The figure is missing and someone has to act (a BCV rate not loaded yet). */
+  alert?: boolean;
+};
+
+// Columns for each number of figures, so the row is always full.
+const STAT_COLUMNS: Record<number, string> = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-2 xl:grid-cols-4",
+  5: "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
+};
+
+/** A page's key figures as a row of cards that always spans the page. */
+export function StatGrid({ stats }: { stats: Stat[] }) {
+  return (
+    <div className={`grid gap-4 ${STAT_COLUMNS[stats.length] ?? STAT_COLUMNS[4]}`}>
+      {stats.map((stat) => (
+        <Card key={stat.label} className="px-5 py-4">
+          <p className="text-[12px] tracking-[0.04em] text-stone uppercase">{stat.label}</p>
+          <p className={`mt-1.5 text-xl ${stat.alert ? "font-medium text-[#b03a36]" : "font-mono"}`}>{stat.value}</p>
+          <p className="mt-1 text-[13px] text-muted">{stat.hint}</p>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 /** Stands in for a list that has no records yet. */
 export function EmptyState({
   icon,

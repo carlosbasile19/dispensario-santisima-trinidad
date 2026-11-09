@@ -5,12 +5,11 @@ import Link from "next/link";
 import { AppointmentList } from "@/components/crm/appointment-list";
 import { DatePicker } from "@/components/crm/date-picker";
 import { Icon } from "@/components/crm/icons";
-import { RateForm } from "@/components/crm/rate-form";
 import { Select } from "@/components/crm/select";
+import { TodayRateCard } from "@/components/crm/today-rate";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/crm/ui";
 import { STATUS_INFO, addDays, clinicToday, formatDay, isIsoDate, isUuid, param } from "@/lib/crm/clinic";
 import { getAppointmentsOn, getBalances, getProfessionals, getRecentRates, getTodayRate } from "@/lib/crm/data";
-import { formatRate } from "@/lib/crm/money";
 import { ROLE_INFO } from "@/lib/crm/roles";
 import { getViewer } from "@/lib/crm/viewer";
 
@@ -144,23 +143,7 @@ export default async function AgendaPage({ searchParams }: PageProps<"/dashboard
           )}
         </Card>
 
-        {money && (
-          <Card>
-            <CardHeader
-              title="Tasa BCV de hoy"
-              hint={todayRate ? `Bs. ${formatRate(todayRate.bs_per_usd)} por dólar` : "Sin cargar: hace falta para cobrar"}
-            />
-            <div className="px-5 py-4">
-              <RateForm
-                day={today}
-                current={todayRate}
-                suggestion={recentRates.find((r) => r.rate_date !== today)?.bs_per_usd ?? null}
-                hasPayments
-                canFetch
-              />
-            </div>
-          </Card>
-        )}
+        {money && <TodayRateCard today={today} rate={todayRate} recentRates={recentRates} />}
       </div>
     </div>
   );
