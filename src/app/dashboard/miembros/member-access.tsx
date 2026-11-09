@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { Icon } from "@/components/crm/icons";
-import { ROLES, ROLE_INFO } from "@/lib/crm/roles";
+import { Select } from "@/components/crm/select";
+import { roleOptions } from "@/lib/crm/roles";
 import { inviteMember, resetMemberPassword, type MemberAccessState } from "../actions";
 
 const input =
@@ -37,13 +38,7 @@ export function InviteMember() {
         </label>
         <label className="flex flex-col gap-1.5 text-[13px] text-muted">
           Perfil
-          <select name="role" defaultValue="staff" className={input}>
-            {ROLES.map((role) => (
-              <option key={role} value={role}>
-                {ROLE_INFO[role].label}
-              </option>
-            ))}
-          </select>
+          <Select name="role" defaultValue="staff" options={roleOptions()} searchable={false} panelMinWidth={340} />
         </label>
         <button
           type="submit"

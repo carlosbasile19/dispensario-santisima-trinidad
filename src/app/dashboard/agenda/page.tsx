@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
+import Form from "next/form";
 import Link from "next/link";
 
 import { AppointmentList } from "@/components/crm/appointment-list";
+import { DatePicker } from "@/components/crm/date-picker";
 import { Icon } from "@/components/crm/icons";
 import { RateForm } from "@/components/crm/rate-form";
+import { Select } from "@/components/crm/select";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/crm/ui";
 import { STATUS_INFO, addDays, clinicToday, formatDay, isIsoDate, isUuid, param } from "@/lib/crm/clinic";
-import { getAppointmentsOn, getBalances, getProfessionals, getRate, getRecentRates } from "@/lib/crm/data";
+import { getAppointmentsOn, getBalances, getProfessionals, getRecentRates, getTodayRate } from "@/lib/crm/data";
 import { formatRate } from "@/lib/crm/money";
+import { ROLE_INFO } from "@/lib/crm/roles";
 import { getViewer } from "@/lib/crm/viewer";
 
 export const metadata: Metadata = { title: "Agenda" };
@@ -31,7 +35,7 @@ export default async function AgendaPage({ searchParams }: PageProps<"/dashboard
   const [all, professionals, todayRate, recentRates] = await Promise.all([
     getAppointmentsOn(day),
     getProfessionals(),
-    money ? getRate(today) : null,
+    money ? getTodayRate(today) : null,
     money ? getRecentRates(today, 2) : [],
   ]);
   const appointments = filter ? all.filter((a) => a.items.some((i) => i.professional_id === filter)) : all;
@@ -76,38 +80,34 @@ export default async function AgendaPage({ searchParams }: PageProps<"/dashboard
           {formatDay(day)}
           {day === today && <span className="ml-2 text-[13px] font-normal text-teal">Hoy</span>}
         </h2>
-        <form action="/dashboard/agenda" className="flex flex-wrap items-center gap-2">
-          <input
-            type="date"
-            name="fecha"
-            defaultValue={day}
-            aria-label="Ir al día"
-            className="h-10 rounded-lg border border-outline bg-white px-3 text-sm"
-          />
+        <Form action="/dashboard/agenda" className="flex flex-wrap items-center gap-2">
+          <DatePicker name="fecha" defaultValue={day} aria-label="Ir al día" submitOnChange className="w-[200px]" />
           {!own && professionals.list.length > 0 && (
-            <select
+            <Select
               name="profesional"
               defaultValue={filter}
               aria-label="Profesional"
-              className="h-10 max-w-[220px] rounded-lg border border-outline bg-white px-2 text-sm"
-            >
-              <option value="">Todos los profesionales</option>
-              {professionals.list.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              submitOnChange
+              className="w-[230px]"
+              panelMinWidth={260}
+              searchPlaceholder="Buscar profesional…"
+              options={[
+                { value: "", label: "Todos los profesionales", icon: "team", description: "Todos los consultorios" },
+                ...professionals.list.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                  avatar: p.name,
+                  description: p.role ? ROLE_INFO[p.role].label : undefined,
+                })),
+              ]}
+            />
           )}
-          <button type="submit" className={button}>
-            Ver
-          </button>
           {day !== today && (
             <Link href={link(today)} className={button}>
               Hoy
             </Link>
           )}
-        </form>
+        </Form>
       </div>
 
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_320px]">
@@ -153,9 +153,10 @@ export default async function AgendaPage({ searchParams }: PageProps<"/dashboard
             <div className="px-5 py-4">
               <RateForm
                 day={today}
-                current={todayRate?.bs_per_usd ?? null}
+                current={todayRate}
                 suggestion={recentRates.find((r) => r.rate_date !== today)?.bs_per_usd ?? null}
                 hasPayments
+                canFetch
               />
             </div>
           </Card>

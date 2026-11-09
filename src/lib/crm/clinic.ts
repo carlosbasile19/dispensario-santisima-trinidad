@@ -1,6 +1,7 @@
 // Vocabulary and calendar of the clinic, shared by server and client code.
 // The clinic runs on America/Caracas time; dates travel as "YYYY-MM-DD".
 
+import type { IconName } from "@/components/crm/icons";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Enums = Database["public"]["Enums"];
@@ -16,6 +17,11 @@ export const AREA_LABEL: Record<ServiceArea, string> = {
   medicina: "Medicina",
   odontologia: "Odontología",
   bioanalisis: "Bioanálisis",
+};
+export const AREA_ICON: Record<ServiceArea, IconName> = {
+  medicina: "stethoscope",
+  odontologia: "tooth",
+  bioanalisis: "flask",
 };
 export const isServiceArea = (value: unknown): value is ServiceArea =>
   typeof value === "string" && (SERVICE_AREAS as readonly string[]).includes(value);
@@ -46,17 +52,37 @@ export const STATUS_ACTIONS: Record<AppointmentStatus, [AppointmentStatus, strin
 /** Statuses whose visit is not charged (excluded from cuentas por cobrar). */
 export const UNBILLED_STATUSES: readonly AppointmentStatus[] = ["cancelled", "no_show"];
 
-export const PAYMENT_METHODS: Record<PaymentMethod, { label: string; currency: Currency }> = {
-  cash_usd: { label: "Efectivo en dólares", currency: "USD" },
-  zelle: { label: "Zelle", currency: "USD" },
-  pago_movil: { label: "Pago móvil", currency: "VES" },
-  card_bs: { label: "Punto de venta", currency: "VES" },
-  transfer_bs: { label: "Transferencia en bolívares", currency: "VES" },
-  cash_bs: { label: "Efectivo en bolívares", currency: "VES" },
+/**
+ * How a visit can be paid. `currency` is what the amount is typed in (the
+ * database derives the other one at the day's BCV rate, see
+ * payment_method_currency). Cashea is financing, not money received: the
+ * patient pays an inicial in the centre with another method and Cashea
+ * guarantees the rest, which the centre collects in cuotas.
+ */
+export const PAYMENT_METHODS: Record<
+  PaymentMethod,
+  { label: string; short: string; currency: Currency; icon: IconName; financed?: boolean; reference: boolean }
+> = {
+  cash_usd: { label: "Efectivo en dólares", short: "Efectivo", currency: "USD", icon: "cash", reference: false },
+  zelle: { label: "Zelle", short: "Zelle", currency: "USD", icon: "send", reference: true },
+  pago_movil: { label: "Pago móvil", short: "Pago móvil", currency: "VES", icon: "mobile", reference: true },
+  card_bs: { label: "Punto de venta", short: "Punto", currency: "VES", icon: "card", reference: true },
+  transfer_bs: { label: "Transferencia en bolívares", short: "Transferencia", currency: "VES", icon: "bank", reference: true },
+  cash_bs: { label: "Efectivo en bolívares", short: "Efectivo", currency: "VES", icon: "coins", reference: false },
+  cashea: { label: "Cashea", short: "Cashea", currency: "USD", icon: "installments", financed: true, reference: false },
 };
 export const PAYMENT_METHOD_LIST = Object.keys(PAYMENT_METHODS) as PaymentMethod[];
+/** Money received at the desk (everything but financing). */
+export const RECEIVED_METHODS = PAYMENT_METHOD_LIST.filter((m) => !PAYMENT_METHODS[m].financed);
 export const isPaymentMethod = (value: unknown): value is PaymentMethod =>
   typeof value === "string" && value in PAYMENT_METHODS;
+
+/** The groups the payment pickers show. */
+export const PAYMENT_GROUPS: { label: string; methods: PaymentMethod[] }[] = [
+  { label: "En dólares", methods: RECEIVED_METHODS.filter((m) => PAYMENT_METHODS[m].currency === "USD") },
+  { label: "En bolívares · tasa BCV", methods: RECEIVED_METHODS.filter((m) => PAYMENT_METHODS[m].currency === "VES") },
+  { label: "Financiado", methods: PAYMENT_METHOD_LIST.filter((m) => PAYMENT_METHODS[m].financed) },
+];
 
 export const DURATIONS = [15, 20, 30, 45, 60, 90, 120] as const;
 

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { Icon } from "@/components/crm/icons";
 import { Avatar, Badge, Card, CardHeader, NoAccess, PageHeader, RoleBadge, td, th } from "@/components/crm/ui";
-import { PERMISSION_MATRIX, ROLES, ROLE_INFO } from "@/lib/crm/roles";
+import { Select } from "@/components/crm/select";
+import { PERMISSION_MATRIX, ROLES, ROLE_INFO, roleOptions } from "@/lib/crm/roles";
 import { getCurrentProfile } from "@/lib/auth";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -82,23 +83,18 @@ export default async function MembersPage() {
                     ) : (
                       <form action={setMemberRole} className="flex items-center gap-2">
                         <input type="hidden" name="member" value={m.id} />
-                        <select
+                        <Select
                           name="role"
+                          size="sm"
                           defaultValue={m.role ?? ""}
+                          required
+                          placeholder="Sin perfil"
                           aria-label={`Perfil de ${name}`}
-                          className="h-9 rounded-lg border border-outline bg-white px-2 text-sm"
-                        >
-                          {!m.role && (
-                            <option value="" disabled>
-                              Sin perfil
-                            </option>
-                          )}
-                          {ROLES.map((role) => (
-                            <option key={role} value={role}>
-                              {ROLE_INFO[role].label}
-                            </option>
-                          ))}
-                        </select>
+                          options={roleOptions()}
+                          searchable={false}
+                          className="w-[190px]"
+                          panelMinWidth={340}
+                        />
                         <button
                           type="submit"
                           className="h-9 rounded-lg border border-outline px-3 text-[13px] font-medium hover:border-navy"

@@ -133,21 +133,33 @@ export type Database = {
         Row: {
           bs_per_usd: number
           created_at: string
+          fecha_valor: string | null
+          fetched_at: string | null
+          official_bs_per_usd: number | null
           rate_date: string
+          source: string
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           bs_per_usd: number
           created_at?: string
+          fecha_valor?: string | null
+          fetched_at?: string | null
+          official_bs_per_usd?: number | null
           rate_date: string
+          source?: string
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           bs_per_usd?: number
           created_at?: string
+          fecha_valor?: string | null
+          fetched_at?: string | null
+          official_bs_per_usd?: number | null
           rate_date?: string
+          source?: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -225,6 +237,7 @@ export type Database = {
           amount_bs: number
           amount_usd: number
           appointment_id: string
+          cashea_order: string | null
           created_at: string
           currency: string
           id: string
@@ -241,6 +254,7 @@ export type Database = {
           amount_bs: number
           amount_usd: number
           appointment_id: string
+          cashea_order?: string | null
           created_at?: string
           currency: string
           id?: string
@@ -257,6 +271,7 @@ export type Database = {
           amount_bs?: number
           amount_usd?: number
           appointment_id?: string
+          cashea_order?: string | null
           created_at?: string
           currency?: string
           id?: string
@@ -422,6 +437,30 @@ export type Database = {
       is_member: { Args: never; Returns: boolean }
       is_my_appointment: { Args: { appointment: string }; Returns: boolean }
       is_my_patient: { Args: { patient: string }; Returns: boolean }
+      payment_method_currency: {
+        Args: { method: Database["public"]["Enums"]["payment_method"] }
+        Returns: string
+      }
+      record_cashea_payment: {
+        Args: {
+          appointment: string
+          initial_amount?: number
+          initial_method?: Database["public"]["Enums"]["payment_method"]
+          initial_reference?: string
+          order_number: string
+          order_total_usd: number
+        }
+        Returns: undefined
+      }
+      record_official_rate: {
+        Args: {
+          bs_per_usd: number
+          rate_day: string
+          rate_source: string
+          valid_since: string
+        }
+        Returns: string
+      }
       reschedule_appointment: {
         Args: {
           appointment: string
@@ -489,6 +528,7 @@ export type Database = {
         | "card_bs"
         | "transfer_bs"
         | "cash_bs"
+        | "cashea"
       service_area: "medicina" | "odontologia" | "bioanalisis"
     }
     CompositeTypes: {
@@ -633,6 +673,7 @@ export const Constants = {
         "card_bs",
         "transfer_bs",
         "cash_bs",
+        "cashea",
       ],
       service_area: ["medicina", "odontologia", "bioanalisis"],
     },

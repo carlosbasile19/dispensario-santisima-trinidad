@@ -225,3 +225,88 @@ body {
 html:has(dialog.site-menu[open]) {
   overflow: hidden;
 }
+
+/* ------------------------------------------------------------------
+   Platform pickers and modals (components/crm/select, date-picker,
+   modal). Panels are popovers in the top layer; modals are <dialog>.
+   ------------------------------------------------------------------ */
+
+dialog.modal {
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  max-width: calc(100vw - 32px);
+  max-height: none;
+  overflow: visible;
+  color: inherit;
+}
+dialog.modal::backdrop {
+  background: rgb(27 42 85 / 0.34);
+  backdrop-filter: blur(3px);
+}
+/* Phones: a bottom sheet. */
+@media (max-width: 639px) {
+  dialog.modal {
+    width: 100%;
+    max-width: 100%;
+    margin: auto 0 0;
+  }
+}
+html:has(dialog.modal[open]) {
+  overflow: hidden;
+}
+
+/* Money inputs: no spinner arrows (amounts are typed, never stepped). */
+input.no-spin::-webkit-inner-spin-button,
+input.no-spin::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+input.no-spin {
+  appearance: textfield;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.modal[open] .modal-panel {
+    animation: modal-in 0.26s var(--ease-out-soft) both;
+  }
+  dialog.modal[open]::backdrop {
+    animation: fade-in 0.22s ease both;
+  }
+  @media (max-width: 639px) {
+    dialog.modal[open] .modal-panel {
+      animation-name: sheet-in;
+    }
+  }
+  .picker-panel[data-side="bottom"] {
+    animation: picker-down 0.16s var(--ease-out-soft) both;
+  }
+  .picker-panel[data-side="top"] {
+    animation: picker-up 0.16s var(--ease-out-soft) both;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.98);
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+@keyframes picker-down {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.98);
+  }
+}
+@keyframes picker-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0) scale(0.98);
+  }
+}

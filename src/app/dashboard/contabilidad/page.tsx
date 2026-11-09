@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Form from "next/form";
 import Link from "next/link";
 
+import { DatePicker } from "@/components/crm/date-picker";
 import { Icon } from "@/components/crm/icons";
 import { RateForm } from "@/components/crm/rate-form";
 import { Card, CardHeader, EmptyState, NoAccess, PageHeader, td, th } from "@/components/crm/ui";
@@ -16,7 +18,7 @@ import {
   param,
   patientName,
 } from "@/lib/crm/clinic";
-import { getRate, getRecentRates } from "@/lib/crm/data";
+import { getRate, getRecentRates, getTodayRate } from "@/lib/crm/data";
 import { formatBs, formatRate, formatUsd, sumCents } from "@/lib/crm/money";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -41,12 +43,12 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
   const supabase = await createClient();
 
   const [rate, recentRates, { data: paymentRows }, { data: dueRows }] = await Promise.all([
-    getRate(day),
+    day === today ? getTodayRate(today) : getRate(day),
     getRecentRates(today, 10),
     supabase
       .from("payments")
       .select(
-        "id, method, currency, amount_usd, amount_bs, rate, reference, created_at, voided_at, void_reason, appointment:appointments(id, patient:patients(first_name, last_name)), receiver:profiles!payments_received_by_fkey(full_name, email)",
+        "id, method, currency, amount_usd, amount_bs, rate, reference, cashea_order, created_at, voided_at, void_reason, appointment:appointments(id, patient:patients(first_name, last_name)), receiver:profiles!payments_received_by_fkey(full_name, email)",
       )
       .eq("paid_on", day)
       .order("created_at"),
@@ -81,8 +83,11 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
   }).filter((m) => m.count > 0);
   const totalUsd = sumCents(valid.map((p) => p.amount_usd));
   const totalBs = sumCents(valid.map((p) => p.amount_bs));
-  const cashUsd = sumCents(valid.filter((p) => p.currency === "USD").map((p) => p.amount_usd));
-  const cashBs = sumCents(valid.filter((p) => p.currency === "VES").map((p) => p.amount_bs));
+  const received = valid.filter((p) => !PAYMENT_METHODS[p.method].financed);
+  const cashUsd = sumCents(received.filter((p) => p.currency === "USD").map((p) => p.amount_usd));
+  const cashBs = sumCents(received.filter((p) => p.currency === "VES").map((p) => p.amount_bs));
+  const cashea = valid.filter((p) => PAYMENT_METHODS[p.method].financed);
+  const casheaUsd = sumCents(cashea.map((p) => p.amount_usd));
   const totalDue = sumCents(due.map((d) => d.balance_usd ?? 0));
 
   return (
@@ -105,20 +110,27 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
           {formatDay(day)}
           {day === today && <span className="ml-2 text-[13px] font-normal text-teal">Hoy</span>}
         </h2>
-        <form action="/dashboard/contabilidad" className="flex gap-2">
-          <input type="date" name="fecha" defaultValue={day} aria-label="Ir al día" className="h-10 rounded-lg border border-outline bg-white px-3 text-sm" />
-          <button type="submit" className={navButton}>
-            Ver
-          </button>
-        </form>
+        <Form action="/dashboard/contabilidad" className="flex gap-2">
+          <DatePicker name="fecha" defaultValue={day} aria-label="Ir al día" submitOnChange className="w-[200px]" />
+          {day !== today && (
+            <Link href="/dashboard/contabilidad" className={navButton}>
+              Hoy
+            </Link>
+          )}
+        </Form>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {[
-          ["Total del día", formatUsd(totalUsd), `${formatBs(totalBs)} a tasa BCV`],
+          ["Total cobrado", formatUsd(totalUsd), `${formatBs(totalBs)} a tasa BCV`],
           ["Recibido en dólares", formatUsd(cashUsd), "Efectivo y Zelle"],
           ["Recibido en bolívares", formatBs(cashBs), "Pago móvil, punto, transferencia y efectivo"],
-          ["Tasa BCV del día", rate ? `Bs. ${formatRate(rate.bs_per_usd)}` : "Sin cargar", "Bolívares por dólar"],
+          [
+            "Financiado con Cashea",
+            formatUsd(casheaUsd),
+            cashea.length ? `${cashea.length} ${cashea.length === 1 ? "orden" : "órdenes"} · se cobra en cuotas` : "Sin órdenes este día",
+          ],
+          ["Tasa BCV del día", rate ? `Bs. ${formatRate(rate.bs_per_usd)}` : "Sin cargar", rate ? (rate.source === "manual" ? "Cargada a mano" : "Automática, del BCV") : "Bolívares por dólar"],
         ].map(([label, value, hint]) => (
           <Card key={label} className="px-5 py-4">
             <p className="text-[12px] tracking-[0.04em] text-stone uppercase">{label}</p>
@@ -134,9 +146,10 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
           <div className="px-5 py-4">
             <RateForm
               day={day}
-              current={rate?.bs_per_usd ?? null}
+              current={rate}
               suggestion={recentRates.find((r) => r.rate_date < day)?.bs_per_usd ?? null}
               hasPayments={payments.length > 0}
+              canFetch={day === today}
             />
           </div>
         </Card>
@@ -150,7 +163,14 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
                     href={`/dashboard/contabilidad?fecha=${r.rate_date}`}
                     className={`flex justify-between px-5 py-2.5 text-sm hover:bg-cream ${r.rate_date === day ? "font-medium" : ""}`}
                   >
-                    <span>{formatDay(r.rate_date, "short")}</span>
+                    <span className="flex items-center gap-2">
+                      {formatDay(r.rate_date, "short")}
+                      {r.source !== "manual" ? (
+                        <Icon name="bolt" className="size-3.5 text-teal" />
+                      ) : (
+                        <span className="text-[11px] text-stone">a mano</span>
+                      )}
+                    </span>
                     <span className="font-mono">Bs. {formatRate(r.bs_per_usd)}</span>
                   </Link>
                 </li>
@@ -201,7 +221,15 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
                       {voided && <p className="text-[12px] text-[#b03a36]">Anulado: {p.void_reason}</p>}
                     </td>
                     <td className={`${td} ${strike}`}>
-                      {PAYMENT_METHODS[p.method].label}
+                      <span className="flex items-center gap-1.5">
+                        <Icon name={PAYMENT_METHODS[p.method].icon} className="size-3.5 text-teal" />
+                        {PAYMENT_METHODS[p.method].label}
+                      </span>
+                      {p.cashea_order && (
+                        <p className="text-[12px] text-muted">
+                          {PAYMENT_METHODS[p.method].financed ? "Financiado" : "Inicial"} · orden {p.cashea_order}
+                        </p>
+                      )}
                       {p.reference && <p className="text-[12px] text-muted">Ref. {p.reference}</p>}
                     </td>
                     <td className={`${td} text-right font-mono whitespace-nowrap ${strike}`}>
@@ -213,7 +241,16 @@ export default async function AccountingPage({ searchParams }: PageProps<"/dashb
                     <td className={`${td} text-[13px] text-muted`}>
                       {p.receiver?.full_name?.trim() || p.receiver?.email || "—"}
                     </td>
-                    <td className={td}>{!voided && <VoidPayment paymentId={p.id} />}</td>
+                    <td className={td}>
+                      {!voided && (
+                        <VoidPayment
+                          paymentId={p.id}
+                          summary={`${PAYMENT_METHODS[p.method].label} · ${usd ? formatUsd(p.amount_usd) : formatBs(p.amount_bs)}${
+                            p.appointment?.patient ? ` · ${patientName(p.appointment.patient)}` : ""
+                          }`}
+                        />
+                      )}
+                    </td>
                   </tr>
                 );
               })}
