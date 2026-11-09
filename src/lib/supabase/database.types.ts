@@ -62,8 +62,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      is_platform_admin: { Args: never; Returns: boolean }
-      is_ws_member: { Args: { ws: string }; Returns: boolean }
     }
     Enums: {
       app_role: "doctor" | "director" | "staff" | "admin"
