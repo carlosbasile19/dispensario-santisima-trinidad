@@ -40,7 +40,13 @@ src/
     (auth)/login/             # email + password sign-in / sign-up (Server Actions)
     auth/confirm/route.ts     # email-link + OAuth callback (PKCE code or token_hash)
     auth/error/               # invalid/expired link page
-    dashboard/                # example protected page
+    dashboard/                # admin platform (first design, sample data): Inicio, Agenda,
+                              # Pacientes, Contabilidad, Gestión, Miembros
+  lib/crm/
+    roles.ts                  # the four roles and what each may see (single source)
+    viewer.ts                 # current user + role; scoping and masking helpers
+    sample-data.ts            # invented data for the design phase
+  components/crm/             # platform UI: sidebar, cards, badges, icons
 supabase/
   config.toml                 # local stack config (`supabase start`)
   migrations/                 # source of truth for the schema
@@ -52,6 +58,10 @@ supabase/
 - `src/proxy.ts` only does optimistic redirects. Every page, Server Action and Route Handler must still check auth itself, and RLS is the final gate.
 - With Cache Components on, anything that reads cookies (including the Supabase server client) must render inside `<Suspense>`.
 - To protect a new route section, add its prefix to `PROTECTED_PREFIXES` in `src/lib/supabase/proxy.ts` *and* call `requireUser()` in it.
+
+## Admin platform (design phase)
+
+`/dashboard` is the first design of the clinic's admin platform. It runs on invented data in `src/lib/crm/sample-data.ts`, and the role (médico, director médico, personal operativo, administrador) comes from the "Ver como" bar at the top, stored in a cookie. Before real patient data is added, the role must come from the database and be enforced by RLS, and the preview bar must be removed (see `src/lib/crm/viewer.ts`).
 
 ## Database rules
 
