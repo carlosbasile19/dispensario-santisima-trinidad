@@ -6,7 +6,7 @@ import { Icon } from "@/components/crm/icons";
 import { RateForm } from "@/components/crm/rate-form";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/crm/ui";
 import { UNBILLED_STATUSES, clinicToday, formatDay } from "@/lib/crm/clinic";
-import { getAppointmentsOn, getBalances, getProfessionals, getRate, getRecentRates } from "@/lib/crm/data";
+import { getAppointmentsOn, getBalances, getProfessionals, getRecentRates, getTodayRate } from "@/lib/crm/data";
 import { formatRate, formatUsd, sumCents } from "@/lib/crm/money";
 import { getViewer } from "@/lib/crm/viewer";
 
@@ -32,7 +32,7 @@ export default async function DashboardHome() {
   const [appointments, professionals, rate, recentRates] = await Promise.all([
     getAppointmentsOn(today),
     getProfessionals(),
-    money ? getRate(today) : null,
+    money ? getTodayRate(today) : null,
     money ? getRecentRates(today, 2) : [],
   ]);
   const balances = money ? await getBalances(appointments.map((a) => a.id)) : undefined;
@@ -115,7 +115,12 @@ export default async function DashboardHome() {
           <Card>
             <CardHeader title="Tasa BCV de hoy" hint="Hace falta para cobrar en bolívares y en dólares" />
             <div className="px-5 py-4">
-              <RateForm day={today} current={null} suggestion={recentRates.find((r) => r.rate_date !== today)?.bs_per_usd ?? null} />
+              <RateForm
+                day={today}
+                current={null}
+                suggestion={recentRates.find((r) => r.rate_date !== today)?.bs_per_usd ?? null}
+                canFetch
+              />
             </div>
           </Card>
         )}

@@ -1,6 +1,8 @@
 "use client";
 
+import { DatePicker, TimePicker } from "@/components/crm/date-picker";
 import { ActionForm, Field, SubmitButton } from "@/components/crm/forms";
+import { Select } from "@/components/crm/select";
 import { inputClass } from "@/components/crm/styles";
 import { DURATIONS, formatDuration } from "@/lib/crm/clinic";
 import { createAppointment } from "./actions";
@@ -24,19 +26,19 @@ export function AppointmentForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Día">
-          <input type="date" name="date" required defaultValue={day} className={inputClass} />
+          <DatePicker name="date" required defaultValue={day} />
         </Field>
         <Field label="Hora">
-          <input type="time" name="time" required step={300} defaultValue="08:00" className={inputClass} />
+          <TimePicker name="time" required defaultValue="08:00" />
         </Field>
         <Field label="Duración">
-          <select name="duration" defaultValue="30" className={inputClass}>
-            {DURATIONS.map((minutes) => (
-              <option key={minutes} value={minutes}>
-                {formatDuration(minutes)}
-              </option>
-            ))}
-          </select>
+          <Select
+            name="duration"
+            defaultValue="30"
+            triggerIcon="clock"
+            searchable={false}
+            options={DURATIONS.map((minutes) => ({ value: String(minutes), label: formatDuration(minutes) }))}
+          />
         </Field>
       </div>
 

@@ -95,14 +95,15 @@ export function RoleBadge({ role }: { role: Role }) {
   return <Badge tone={tone}>{ROLE_INFO[role].label}</Badge>;
 }
 
-export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
+export function Avatar({ name, size = "md" }: { name: string; size?: "xs" | "sm" | "md" | "lg" }) {
   const initials = name
     .replace(/^(Dr\.|Dra\.|Lcda\.|Lcdo\.)\s+/, "")
     .split(" ")
     .slice(0, 2)
     .map((part) => part[0])
     .join("");
-  const dims = size === "lg" ? "size-14 text-lg" : size === "sm" ? "size-7 text-[11px]" : "size-9 text-[13px]";
+  const dims =
+    size === "lg" ? "size-14 text-lg" : size === "sm" ? "size-7 text-[11px]" : size === "xs" ? "size-5 text-[9px]" : "size-9 text-[13px]";
   return (
     <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full bg-frost font-medium text-navy ${dims}`}>
       {initials}
