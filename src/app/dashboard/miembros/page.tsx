@@ -103,7 +103,7 @@ export default async function MembersPage() {
 // setMemberRole and inviteMember as soon as they call refresh().
 async function Team({ selfId }: { selfId: string }) {
   const supabase = await createClient();
-  const { data } = await supabase.from("profiles").select("id, email, full_name, role, created_at").order("created_at");
+  const { data } = await supabase.from("profiles").select("id, email, full_name, avatar_url, role, created_at").order("created_at");
   const members = data ?? [];
 
   return (
@@ -114,7 +114,7 @@ async function Team({ selfId }: { selfId: string }) {
           <tr key={m.id}>
             <td className={td}>
               <span className="flex items-center gap-3">
-                <Avatar name={name} />
+                <Avatar name={name} src={m.avatar_url} />
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{name}</span>
                   <span className="block truncate text-[13px] text-muted">{m.email}</span>

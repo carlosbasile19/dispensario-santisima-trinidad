@@ -52,7 +52,7 @@ async function Sidebar() {
         <SidebarNav groups={navFor(viewer.role)} />
       </div>
       <div className="hidden items-center gap-2.5 border-t border-line pt-4 lg:flex">
-        <Avatar name={viewer.name} />
+        <Avatar name={viewer.name} src={viewer.avatarUrl} />
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-sm font-medium">{viewer.name}</p>
           <p className="truncate text-[12px] text-muted">{ROLE_INFO[viewer.role].label}</p>
