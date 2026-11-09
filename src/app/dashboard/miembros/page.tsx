@@ -7,6 +7,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { setMemberRole } from "../actions";
+import { InviteMember, ResetPassword } from "./member-access";
 
 export const metadata: Metadata = { title: "Miembros" };
 
@@ -41,15 +42,21 @@ export default async function MembersPage() {
         description="Las personas del centro con cuenta en la plataforma y lo que puede ver cada perfil. Los pacientes no tienen acceso."
       />
 
+      <Card>
+        <CardHeader title="Crear cuenta" hint="La cuenta queda activa con una contraseña temporal que se muestra una sola vez" />
+        <InviteMember />
+      </Card>
+
       <Card className="overflow-x-auto">
         <CardHeader title="Equipo" hint={`${members.length} ${members.length === 1 ? "persona" : "personas"}`} />
-        <table className="w-full min-w-[760px] border-collapse">
+        <table className="w-full min-w-[920px] border-collapse">
           <thead>
             <tr className="border-b border-line">
               <th className={th}>Miembro</th>
               <th className={th}>Perfil</th>
               <th className={th}>Estado</th>
               <th className={th}>Alta</th>
+              <th className={th}>Acceso</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -105,6 +112,7 @@ export default async function MembersPage() {
                     <Badge tone={m.role ? "teal" : "outline"}>{m.role ? "Activo" : "Sin acceso"}</Badge>
                   </td>
                   <td className={`${td} text-ink whitespace-nowrap`}>{joined.format(new Date(m.created_at))}</td>
+                  <td className={td}>{m.id !== self?.id && <ResetPassword memberId={m.id} />}</td>
                 </tr>
               );
             })}

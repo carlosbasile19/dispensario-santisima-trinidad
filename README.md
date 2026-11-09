@@ -65,7 +65,7 @@ supabase/
 `/dashboard` is the clinic's admin platform. Its screens still run on invented data in `src/lib/crm/sample-data.ts`; accounts, roles and sign-in are real.
 
 - **Roles.** Each member has one role on `profiles.role` (`doctor`, `director`, `staff`, `admin`); what each may see is defined once in `src/lib/crm/roles.ts`. A signed-in account with no role lands on `/acceso-pendiente`. Members cannot change their own role: only administrators can, from Miembros (`set_member_role`).
-- **No public sign-up.** Accounts are created by administrators. `scripts/create-members.mjs` creates the first ones with temporary passwords (needs `SUPABASE_SECRET_KEY`). Turn off "Allow new users to sign up" in Supabase → Authentication so the API matches the UI.
+- **No public sign-up.** Administrators create accounts in Miembros ("Crear cuenta") and can give a member a new temporary password there. Both use `SUPABASE_SECRET_KEY` on the server (`src/lib/supabase/admin.ts`), set in Vercel. The very first administrator is created by hand: add the user in Supabase → Authentication, then `update public.profiles set role = 'admin' where email = '…'`. `scripts/create-members.mjs` does the same from a terminal. Turn off "Allow new users to sign up" in Supabase → Authentication so the API matches the UI.
 - **Passkeys.** Members add them in Mi cuenta and can then use "Entrar con passkey". In Supabase → Authentication, enable passkeys and set the relying party ID to the production domain (no scheme) and its origin to `https://<production-domain>`. Passkeys are bound to that domain, so they do not work on preview deployments.
 - **Ver como.** Administrators can preview the platform as another profile. It only narrows what they see.
 
@@ -80,7 +80,7 @@ supabase/
 | | Supabase | Vercel |
 | --- | --- | --- |
 | Project | `DST` (`xnbinvflvurdpvbctxfh`, eu-central-1) | `dispensario-santisima-trinidad` |
-| Env vars | — | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL` |
+| Env vars | — | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `SUPABASE_SECRET_KEY` (server only) |
 
 Pushes to `main` deploy to production. Other branches and PRs get preview deployments.
 
