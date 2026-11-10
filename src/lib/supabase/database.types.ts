@@ -503,7 +503,7 @@ export type Database = {
           finalized_by?: string | null
           id?: string
           notes?: string | null
-          number?: number
+          number?: never
           patient_id: string
           patient_snapshot?: Json | null
           patient_type?: string
@@ -528,7 +528,7 @@ export type Database = {
           finalized_by?: string | null
           id?: string
           notes?: string | null
-          number?: number
+          number?: never
           patient_id?: string
           patient_snapshot?: Json | null
           patient_type?: string
