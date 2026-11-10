@@ -195,7 +195,22 @@ export async function createTemplate(
  */
 export async function sendTemplate(
   apiKey: string,
-  { accountId, toE164, name, language, params }: { accountId: string; toE164: string; name: string; language: string; params: string[] },
+  {
+    accountId,
+    toE164,
+    name,
+    language,
+    params,
+    document,
+  }: {
+    accountId: string;
+    toE164: string;
+    name: string;
+    language: string;
+    params: string[];
+    /** For a template with a document header: a link Meta can download (a signed URL) and the name the patient sees. */
+    document?: { link: string; filename: string };
+  },
 ) {
   const data = await call<{ data?: { messageId?: unknown; conversationId?: unknown } }>(apiKey, "/inbox/conversations", {
     method: "POST",
@@ -206,6 +221,7 @@ export async function sendTemplate(
       templateName: name,
       templateLanguage: language,
       templateParams: params,
+      ...(document ? { headerMedia: { type: "document", link: document.link, filename: document.filename } } : {}),
     },
   });
   return { messageId: str(data?.data?.messageId), conversationId: str(data?.data?.conversationId) };

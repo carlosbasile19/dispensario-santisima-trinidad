@@ -114,13 +114,15 @@ export async function submitWhatsAppTemplates(): Promise<FormState> {
     const missing = TEMPLATE_KINDS.filter(
       (kind) => !remote.some((t) => t.name === TEMPLATES[kind].name && t.language === TEMPLATE_LANGUAGE),
     );
+    // The results template's review needs a sample PDF Meta can download: a report of a fictitious patient.
+    const samplePdfUrl = `${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || (await requestOrigin())}/laboratorio/informe-de-ejemplo.pdf`;
     for (const kind of missing) {
       const created = await createTemplate(config.apiKey, {
         accountId: account.zernio_account_id,
         name: TEMPLATES[kind].name,
         language: TEMPLATE_LANGUAGE,
         category: "UTILITY",
-        components: templateComponents(kind),
+        components: templateComponents(kind, { samplePdfUrl }),
         ttlSeconds: TEMPLATE_TTL_SECONDS,
       });
       await admin.from("whatsapp_templates").upsert(
@@ -138,7 +140,7 @@ export async function submitWhatsAppTemplates(): Promise<FormState> {
     return {
       message: missing.length
         ? "Plantillas enviadas a Meta. La revisión suele tardar minutos (hasta 24 horas); el estado se actualiza solo."
-        : "Meta ya tiene las dos plantillas. Estado actualizado.",
+        : "Meta ya tiene todas las plantillas. Estado actualizado.",
     };
   } catch (error) {
     console.error("WhatsApp template submit failed", error instanceof Error ? error.message : error);

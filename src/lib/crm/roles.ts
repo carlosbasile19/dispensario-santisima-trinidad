@@ -28,6 +28,8 @@ export type Permissions = {
   collectPayments: boolean;
   /** Calendarios: create the booking calendars and edit their hours, services and links. */
   manageCalendars: boolean;
+  /** Laboratorio: build, validate and correct lab result reports (everyone who sees a patient can print and send them). */
+  labReports: boolean;
   /** Contabilidad: the price list, any day's BCV rate, voiding payments. */
   accounting: boolean;
   management: boolean;
@@ -49,6 +51,7 @@ export const ROLE_INFO: Record<
       documents: "own",
       manageSchedule: false,
       collectPayments: false,
+      labReports: true,
       manageCalendars: false,
       accounting: false,
       management: false,
@@ -66,6 +69,7 @@ export const ROLE_INFO: Record<
       documents: "all",
       manageSchedule: false,
       collectPayments: false,
+      labReports: false,
       manageCalendars: false,
       accounting: false,
       management: false,
@@ -83,6 +87,7 @@ export const ROLE_INFO: Record<
       documents: "all",
       manageSchedule: true,
       collectPayments: true,
+      labReports: false,
       manageCalendars: false,
       accounting: false,
       management: false,
@@ -100,6 +105,7 @@ export const ROLE_INFO: Record<
       documents: "all",
       manageSchedule: true,
       collectPayments: true,
+      labReports: true,
       manageCalendars: true,
       accounting: true,
       management: true,
@@ -122,7 +128,7 @@ export const ROLE_ICON: Record<Role, IconName> = {
 export const roleOptions = () =>
   ROLES.map((role) => ({ value: role, label: ROLE_INFO[role].label, description: ROLE_INFO[role].description, icon: ROLE_ICON[role] }));
 
-export type NavIcon = "home" | "calendar" | "slots" | "patients" | "ledger" | "building" | "chat" | "team" | "key";
+export type NavIcon = "home" | "calendar" | "slots" | "patients" | "flask" | "ledger" | "building" | "chat" | "team" | "key";
 export type NavItem = { href: string; label: string; icon: NavIcon };
 export type NavGroup = { title: string; items: NavItem[] };
 
@@ -137,6 +143,7 @@ export function navFor(role: Role): NavGroup[] {
         { href: "/dashboard/agenda", label: "Agenda", icon: "calendar" },
         { href: "/dashboard/calendarios", label: p.schedule === "own" ? "Mi calendario" : "Calendarios", icon: "slots" },
         { href: "/dashboard/pacientes", label: "Pacientes", icon: "patients" },
+        { href: "/dashboard/laboratorio", label: "Laboratorio", icon: "flask" },
       ],
     },
   ];
@@ -168,6 +175,10 @@ export const PERMISSION_MATRIX: { group: string; rows: { label: string; level: (
         },
       },
       { label: "Ver y descargar documentos", level: (r) => scopeLevel(can(r).documents) },
+      {
+        label: "Informes de laboratorio: crear, validar y corregir",
+        level: (r) => (can(r).labReports ? (can(r).schedule === "all" ? "full" : "own") : "read"),
+      },
       { label: "Cobrar en recepción y cargar la tasa BCV del día", level: (r) => (can(r).collectPayments ? "full" : "none") },
       {
         label: "Calendarios de reserva: horarios, servicios y enlaces",
