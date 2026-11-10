@@ -27,14 +27,32 @@ import { TimeSlots } from "./time-slots";
 type Step = "pick" | "details" | "done";
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const EMPTY: DetailsValues = { documentType: "V", document: "", notes: "", firstName: "", lastName: "", email: "", phone: "" };
+const EMPTY: DetailsValues = {
+  documentType: "V",
+  document: "",
+  notes: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  whatsapp: true,
+};
 
 const firstDayOf = (service: BookingService | undefined) =>
   service ? (Object.keys(service.slots).sort().find((day) => service.slots[day].length) ?? null) : null;
 
 const isDesktop = () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
 
-export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingCalendar; initialServiceId?: string }) {
+export function BookingFlow({
+  calendar,
+  initialServiceId,
+  offersWhatsApp = false,
+}: {
+  calendar: BookingCalendar;
+  initialServiceId?: string;
+  /** The clinic's WhatsApp is connected: the form offers the confirmation by WhatsApp. */
+  offersWhatsApp?: boolean;
+}) {
   const router = useRouter();
   const { services, today } = calendar;
   const lastDay = shiftDay(today, calendar.horizonDays);
@@ -148,6 +166,7 @@ export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingC
         documentType: values.documentType,
         documentNumber: cleanDocument(values.documentType, values.document),
         notes: values.notes,
+        whatsapp: offersWhatsApp ? values.whatsapp : undefined,
         firstName: askDetails ? values.firstName : undefined,
         lastName: askDetails ? values.lastName : undefined,
         email: askDetails ? values.email : undefined,
@@ -273,6 +292,7 @@ export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingC
                 onSubmit={submit}
                 onBack={backToPick}
                 summary={summary}
+                offersWhatsApp={offersWhatsApp}
               />
             )}
 

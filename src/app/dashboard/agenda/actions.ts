@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { syncBcvRates } from "@/lib/bcv/sync";
 import {
@@ -20,6 +21,7 @@ import { centsToInput, parseCents, parseRate } from "@/lib/crm/money";
 import { getViewer } from "@/lib/crm/viewer";
 import type { TablesInsert } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { sendBookingConfirmation } from "@/lib/whatsapp/send";
 
 // Every action checks the member's profile first; RLS and the database
 // functions check again. Amounts are validated to at most 15 significant
@@ -90,7 +92,35 @@ export async function createAppointment(_prev: FormState, formData: FormData): P
   });
   if (error || !data) return { error: dbErrorMessage(error, "No se pudo agendar la cita. Inténtalo de nuevo.") };
 
+  // The WhatsApp confirmation, when the patient accepts it, goes out after the response.
+  after(() => sendBookingConfirmation(data).then(() => undefined));
   redirect(`/dashboard/agenda/${data}`);
+}
+
+/**
+ * Sends a visit's WhatsApp confirmation by hand, for instance after the
+ * patient accepted WhatsApp at the desk. The database checks the patient's
+ * consent and number and sends each visit's confirmation once.
+ */
+export async function sendWhatsAppConfirmation(_prev: FormState, formData: FormData): Promise<FormState> {
+  const viewer = await getViewer();
+  if (!viewer.permissions.manageSchedule) return { error: NO_SCHEDULE };
+  const id = formData.get("appointment");
+  if (!isUuid(id)) return { error: "Cita no válida." };
+
+  // RLS: the member must see the visit.
+  const supabase = await createClient();
+  const { data: visit } = await supabase.from("appointments").select("id").eq("id", id).maybeSingle();
+  if (!visit) return { error: "Cita no válida." };
+
+  const report = await sendBookingConfirmation(id, { retry: true });
+  refresh();
+  if (!report) {
+    return { error: "No se envió: revisa que el paciente aceptó WhatsApp, que su teléfono es un celular y que la cita está pendiente." };
+  }
+  if (report.sent) return { message: "Confirmación enviada por WhatsApp." };
+  if (report.failed) return { error: "WhatsApp no aceptó el mensaje. El detalle está en la tarjeta de WhatsApp." };
+  return { error: "No se envió. El motivo está en la tarjeta de WhatsApp." };
 }
 
 export async function setAppointmentStatus(_prev: FormState, formData: FormData): Promise<FormState> {

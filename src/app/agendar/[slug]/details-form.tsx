@@ -23,6 +23,8 @@ export type DetailsValues = {
   lastName: string;
   email: string;
   phone: string;
+  /** Receive the confirmation and a reminder by WhatsApp (offered when the clinic's number is connected). */
+  whatsapp: boolean;
 };
 
 /** none: a cédula the centre may know · details: a new patient, who gives name, last name, email and mobile. */
@@ -60,6 +62,7 @@ export function DetailsForm({
   onSubmit,
   onBack,
   summary,
+  offersWhatsApp = false,
 }: {
   values: DetailsValues;
   onChange: (patch: Partial<DetailsValues>) => void;
@@ -71,6 +74,8 @@ export function DetailsForm({
   onBack: () => void;
   /** The chosen slot, shown above the form on small screens. */
   summary: ReactNode;
+  /** Offer the confirmation and reminder by WhatsApp. */
+  offersWhatsApp?: boolean;
 }) {
   const id = useId();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -259,6 +264,24 @@ export function DetailsForm({
           className={`${input} h-auto resize-y py-3 leading-relaxed`}
         />
       </div>
+
+      {offersWhatsApp && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-cream px-4 py-3">
+          <input
+            type="checkbox"
+            checked={values.whatsapp}
+            onChange={(e) => onChange({ whatsapp: e.target.checked })}
+            className="mt-0.5 size-[18px] shrink-0 accent-navy"
+          />
+          <span className="text-[14px] leading-relaxed text-navy">
+            Recibir la confirmación y un recordatorio de la cita por WhatsApp
+            <span className="mt-0.5 block text-[13px] text-muted">
+              Del Centro Médico Integral Santísima Trinidad, {need === "details" ? "al celular que escribiste" : "al celular de tu ficha"}.
+              Puedes pedirnos que dejemos de escribirte cuando quieras.
+            </span>
+          </span>
+        </label>
+      )}
 
       {problem && (
         <p role="alert" className="flex gap-2.5 rounded-xl bg-coral/10 px-4 py-3 text-[14px] text-[#b03a36]">

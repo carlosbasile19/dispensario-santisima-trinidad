@@ -47,6 +47,11 @@ export type BookingRequest = {
   documentType: string;
   documentNumber: string;
   notes?: string;
+  /**
+   * The answer to "receive the confirmation and a reminder by WhatsApp",
+   * when the form offered it. Recorded on the patient's record.
+   */
+  whatsapp?: boolean;
   /** Only for a patient the centre does not know yet. */
   firstName?: string;
   lastName?: string;

@@ -9,7 +9,18 @@ import { savePatient } from "./actions";
 
 type Patient = Pick<
   Tables<"patients">,
-  "id" | "first_name" | "last_name" | "id_type" | "id_number" | "birth_date" | "sex" | "phone" | "email" | "address" | "notes"
+  | "id"
+  | "first_name"
+  | "last_name"
+  | "id_type"
+  | "id_number"
+  | "birth_date"
+  | "sex"
+  | "phone"
+  | "email"
+  | "address"
+  | "notes"
+  | "whatsapp_consent"
 >;
 
 const DOCUMENT_OPTIONS = [
@@ -18,6 +29,14 @@ const DOCUMENT_OPTIONS = [
   { value: "P", label: "Pasaporte", description: "Letras y números", icon: "id-card" as const },
   { value: "", label: "Sin cédula", description: "Por ejemplo, un niño" },
 ];
+
+const WHATSAPP_OPTIONS = [
+  { value: "yes", label: "Acepta", description: "Confirmación y recordatorio de sus citas", icon: "chat" as const },
+  { value: "no", label: "No acepta", description: "No se le envían mensajes" },
+  { value: "", label: "Sin preguntar" },
+];
+
+const consentValue = (consent: boolean | null | undefined) => (consent === true ? "yes" : consent === false ? "no" : "");
 
 const SEX_OPTIONS = [
   { value: "", label: "Sin indicar" },
@@ -107,6 +126,19 @@ export function PatientForm({
           <input name="email" type="email" maxLength={120} autoComplete="off" defaultValue={patient?.email ?? ""} className={inputClass} />
         </Field>
       </div>
+
+      <Field
+        label="Mensajes por WhatsApp"
+        hint="Pregúntale si quiere recibir en su celular la confirmación y el recordatorio de sus citas."
+      >
+        <Select
+          name="whatsapp_consent"
+          defaultValue={patient ? consentValue(patient.whatsapp_consent) : "yes"}
+          options={WHATSAPP_OPTIONS}
+          searchable={false}
+          panelMinWidth={280}
+        />
+      </Field>
 
       <Field label="Dirección">
         <input name="address" maxLength={300} autoComplete="off" defaultValue={patient?.address ?? ""} className={inputClass} />

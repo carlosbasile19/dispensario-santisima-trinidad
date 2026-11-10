@@ -72,7 +72,7 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
   const supabase = await createClient();
   const { data: patient } = await supabase
     .from("patients")
-    .select("id, first_name, last_name, id_type, id_number, birth_date, sex, phone, email, address, notes, created_at")
+    .select("id, first_name, last_name, id_type, id_number, birth_date, sex, phone, email, address, notes, created_at, whatsapp_consent")
     .eq("id", id)
     .maybeSingle();
   if (!patient) notFound();
@@ -97,6 +97,7 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
     ["Nacimiento", patient.birth_date ? `${formatDay(patient.birth_date, "short")} · ${ageOn(patient.birth_date, today)} años` : "—"],
     ["Sexo", patient.sex === "F" ? "Femenino" : patient.sex === "M" ? "Masculino" : "—"],
     ["Teléfono", patient.phone ?? "—"],
+    ["WhatsApp", patient.whatsapp_consent === true ? "Acepta mensajes" : patient.whatsapp_consent === false ? "No acepta mensajes" : "Sin preguntar"],
     ["Correo", patient.email ?? "—"],
     ["Dirección", patient.address ?? "—"],
   ];
