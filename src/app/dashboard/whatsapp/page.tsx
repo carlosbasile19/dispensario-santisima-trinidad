@@ -7,6 +7,7 @@ import { Icon } from "@/components/crm/icons";
 import { Switch } from "@/components/crm/switch";
 import { Badge, Card, CardHeader, EmptyState, NoAccess, PageHeader, RowsSkeleton } from "@/components/crm/ui";
 import { formatDay, formatTime, localDay, param, patientName } from "@/lib/crm/clinic";
+import { getProfessionals } from "@/lib/crm/data";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { missingZernioEnv } from "@/lib/whatsapp/config";
@@ -19,12 +20,14 @@ import {
   saveWhatsAppSwitches,
   submitWhatsAppTemplates,
 } from "./actions";
+import { DoctorAlertsCard, type DoctorAlertRow } from "./doctor-alerts";
 
 export const metadata: Metadata = { title: "WhatsApp" };
 
 // WhatsApp (administrators only): the clinic's number connected through
-// Zernio with Coexistence, the automatic messages, the templates at Meta and
-// the latest messages. See lib/whatsapp and README "WhatsApp".
+// Zernio with Coexistence, the automatic messages, the templates at Meta, the
+// doctors' numbers for their alerts and the latest messages. See
+// lib/whatsapp and README "WhatsApp".
 
 const CONNECT_ERRORS: Record<string, string> = {
   connection_cancelled: "La conexión se canceló antes de terminar. Puedes intentarlo de nuevo.",
@@ -49,7 +52,7 @@ export default async function WhatsAppPage({ searchParams }: PageProps<"/dashboa
       <PageHeader
         eyebrow="Administración"
         title="WhatsApp"
-        description="Confirmaciones y recordatorios desde el número del centro. Recepción sigue usando la app WhatsApp Business como siempre."
+        description="Confirmaciones y recordatorios a pacientes, y avisos de citas nuevas a los médicos, desde el número del centro. Recepción sigue usando la app WhatsApp Business como siempre."
       />
       <Suspense fallback={<RowsSkeleton rows={4} />}>
         <WhatsAppSettings searchParams={searchParams} />
@@ -63,7 +66,7 @@ const stamp = (timestamp: string) => `${formatDay(localDay(timestamp), "short")}
 async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/dashboard/whatsapp">["searchParams"] }) {
   const params = await searchParams;
   const supabase = await createClient();
-  const [{ data: settings }, { data: templates }, { data: messages }] = await Promise.all([
+  const [{ data: settings }, { data: templates }, { data: messages }, { data: phones }, { data: alerts }, professionals] = await Promise.all([
     supabase.from("whatsapp_settings").select("*").maybeSingle(),
     supabase.from("whatsapp_templates").select("name, language, status, reason, updated_at"),
     supabase
@@ -71,6 +74,13 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
       .select("id, kind, status, reply, error, created_at, appointment_id, starts_at, patients(first_name, last_name)")
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase.from("whatsapp_doctor_phones").select("professional_id, phone"),
+    supabase
+      .from("whatsapp_doctor_alerts")
+      .select("professional_id, status, error, created_at, starts_at")
+      .order("created_at", { ascending: false })
+      .limit(200),
+    getProfessionals(),
   ]);
   const missing = missingZernioEnv();
   const connected = Boolean(settings?.connected && settings.zernio_account_id);
@@ -82,6 +92,16 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
     templates?.some((t) => t.name === TEMPLATES[kind].name && t.language === TEMPLATE_LANGUAGE && t.status === "APPROVED"),
   );
   const allSubmitted = TEMPLATE_KINDS.every((kind) => templates?.some((t) => t.name === TEMPLATES[kind].name && t.language === TEMPLATE_LANGUAGE));
+  // Alerts come newest first: the first one of each professional is their latest.
+  const doctors: DoctorAlertRow[] = professionals.list
+    .filter((p) => p.role === "doctor" || p.role === "director")
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      role: p.role,
+      phone: phones?.find((row) => row.professional_id === p.id)?.phone ?? null,
+      last: alerts?.find((row) => row.professional_id === p.id) ?? null,
+    }));
 
   return (
     <div className="grid items-start gap-6 xl:grid-cols-[1fr_400px]">
@@ -246,7 +266,7 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
         </Card>
 
         <Card>
-          <CardHeader title="Mensajes automáticos" hint="Solo a pacientes que aceptaron WhatsApp y tienen un celular" />
+          <CardHeader title="Mensajes automáticos" hint="A pacientes, solo si aceptaron WhatsApp y tienen un celular; a médicos, si tienen número" />
           <ActionForm action={saveWhatsAppSwitches} className="flex flex-col gap-5 px-5 py-5">
             <Switch
               name="send_confirmations"
@@ -260,6 +280,12 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
               label="Recordatorio el día anterior"
               description="Sale cada tarde para las citas del día siguiente, con los mismos botones."
             />
+            <Switch
+              name="send_doctor_alerts"
+              defaultChecked={settings?.send_doctor_alerts ?? true}
+              label="Aviso al médico al agendar"
+              description="En cuanto se agenda una cita, en línea o en recepción, al WhatsApp de cada médico de la cita que tenga número."
+            />
             <div>
               <SubmitButton size="sm" variant="secondary" pendingLabel="Guardando…">
                 Guardar
@@ -267,6 +293,8 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
             </div>
           </ActionForm>
         </Card>
+
+        <DoctorAlertsCard doctors={doctors} paused={settings?.send_doctor_alerts === false} />
       </div>
 
       <div className="flex min-w-0 flex-col gap-6">
@@ -311,7 +339,12 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
               sola. <strong>Reprogramar</strong> queda para recepción, que lo ve en el chat.
             </li>
             <li>Solo reciben mensajes los pacientes que aceptaron WhatsApp: al reservar en línea o en su ficha.</li>
-            <li>Nunca se envía la cédula ni el servicio de la cita.</li>
+            <li>A los pacientes nunca se les envía la cédula ni el servicio de la cita.</li>
+            <li>
+              Cada médico con número recibe un <strong>aviso</strong> en cuanto se le agenda una cita: el paciente, el día, la hora y el
+              servicio, nunca la cédula ni el teléfono. El aviso también aparece en la app de recepción, en el chat con el médico, y si
+              responde, le llega a recepción.
+            </li>
             <li>
               Con la conexión activa, la app WhatsApp Business no permite listas de difusión, y se debe abrir en el teléfono al menos
               cada 14 días. WhatsApp para Windows no puede vincularse; WhatsApp Web sí.

@@ -21,7 +21,7 @@ import { centsToInput, parseCents, parseRate } from "@/lib/crm/money";
 import { getViewer } from "@/lib/crm/viewer";
 import type { TablesInsert } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
-import { sendBookingConfirmation } from "@/lib/whatsapp/send";
+import { deliverDoctorAlerts, sendBookingConfirmation } from "@/lib/whatsapp/send";
 
 // Every action checks the member's profile first; RLS and the database
 // functions check again. Amounts are validated to at most 15 significant
@@ -92,8 +92,9 @@ export async function createAppointment(_prev: FormState, formData: FormData): P
   });
   if (error || !data) return { error: dbErrorMessage(error, "No se pudo agendar la cita. Inténtalo de nuevo.") };
 
-  // The WhatsApp confirmation, when the patient accepts it, goes out after the response.
-  after(() => sendBookingConfirmation(data).then(() => undefined));
+  // After the response: the WhatsApp confirmation, when the patient accepts
+  // it, and the alert to each doctor of the visit who has a number.
+  after(() => Promise.all([sendBookingConfirmation(data), deliverDoctorAlerts()]).then(() => undefined));
   redirect(`/dashboard/agenda/${data}`);
 }
 
@@ -186,6 +187,8 @@ export async function addAppointmentItem(_prev: FormState, formData: FormData): 
   const row = { appointment_id: appointment, ...item } as TablesInsert<"appointment_items">;
   const { error } = await supabase.from("appointment_items").insert(row);
   if (error) return { error: dbErrorMessage(error) };
+  // A doctor new to the visit gets the alert (the database queues it).
+  if (item.professional_id) after(() => deliverDoctorAlerts().then(() => undefined));
   refresh();
   return { message: "Servicio añadido." };
 }
@@ -207,6 +210,8 @@ export async function updateAppointmentItem(_prev: FormState, formData: FormData
     .update({ professional_id: isUuid(professional) ? professional : null, price_usd: newPrice })
     .eq("id", id);
   if (error) return { error: dbErrorMessage(error) };
+  // A doctor new to the visit gets the alert (the database queues it).
+  if (isUuid(professional)) after(() => deliverDoctorAlerts().then(() => undefined));
   refresh();
   return { message: "Servicio actualizado." };
 }
