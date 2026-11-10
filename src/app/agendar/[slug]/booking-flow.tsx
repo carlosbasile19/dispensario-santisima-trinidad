@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition, type ReactNode } from "react";
 
 import { Icon } from "@/components/crm/icons";
+import { cleanDocument, isValidDocument } from "@/lib/booking/document";
 import { isBookingPhone, normalizePhone } from "@/lib/booking/phone";
 import type { BookedVisit, BookingCalendar, BookingService } from "@/lib/booking/types";
 import { AREA_ICON, formatDay } from "@/lib/crm/clinic";
@@ -17,17 +18,16 @@ import { MonthCalendar } from "./month-calendar";
 import { TimeSlots } from "./time-slots";
 
 // The booking page of one calendar (patterns from Mobbin: Cal.com and
-// Calendly's three-column picker, Zocdoc's "for someone else", Square's
-// phone-first checkout). Three steps on one page: pick the service, day and
-// time; give a mobile number (and, for a new patient, name, last name and
-// email); done. All free slots of the horizon arrive with the page, so moving
+// Calendly's three-column picker, Zocdoc and Square's short checkout). Three
+// steps on one page: pick the service, day and time; give the patient's
+// cédula (and, for a new patient, name, last name, email and mobile); done. All free slots of the horizon arrive with the page, so moving
 // between days needs no round trip. If a slot is taken meanwhile, the page
 // reloads its slots and keeps what the patient typed.
 
 type Step = "pick" | "details" | "done";
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const EMPTY: DetailsValues = { phone: "", notes: "", firstName: "", lastName: "", email: "", other: false };
+const EMPTY: DetailsValues = { documentType: "V", document: "", notes: "", firstName: "", lastName: "", email: "", phone: "" };
 
 const firstDayOf = (service: BookingService | undefined) =>
   service ? (Object.keys(service.slots).sort().find((day) => service.slots[day].length) ?? null) : null;
@@ -106,8 +106,8 @@ export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingC
   const change = (patch: Partial<DetailsValues>) => {
     setValues((current) => ({ ...current, ...patch }));
     setProblem(null);
-    // A different number may belong to a known patient: ask again from the start.
-    if (patch.phone !== undefined && need !== "none") {
+    // Another document may belong to a known patient: ask again from the start.
+    if ((patch.document !== undefined || patch.documentType !== undefined) && need !== "none") {
       setNeed("none");
       setNeedMessage(null);
     }
@@ -115,16 +115,24 @@ export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingC
 
   const submit = () => {
     if (!day || !time) return backToPick();
-    const askDetails = need === "details" || values.other;
-    const askName = askDetails || need === "name";
-    if (!isBookingPhone(normalizePhone(values.phone))) {
+    const askDetails = need === "details";
+    if (!isValidDocument(values.documentType, values.document)) {
       return setProblem({
-        field: "phone",
-        message: "Escribe un número de celular: 04xx-xxxxxxx, o con el código de tu país si es del exterior (+…).",
+        field: "document",
+        message:
+          values.documentType === "P"
+            ? "Revisa el pasaporte: de 4 a 15 letras y números."
+            : "Revisa la cédula: de 5 a 10 números.",
       });
     }
-    if (askName && (!values.firstName.trim() || !values.lastName.trim())) {
-      return setProblem({ field: "name", message: "Escribe el nombre y el apellido." });
+    if (askDetails && (!values.firstName.trim() || !values.lastName.trim())) {
+      return setProblem({ field: "name", message: "Escribe el nombre y el apellido del paciente." });
+    }
+    if (askDetails && !isBookingPhone(normalizePhone(values.phone))) {
+      return setProblem({
+        field: "phone",
+        message: "Escribe un número de celular: 04xx-xxxxxxx, o con el código del país si es del exterior (+…).",
+      });
     }
     if (askDetails && !EMAIL.test(values.email.trim())) {
       return setProblem({ field: "email", message: "Escribe un correo electrónico válido." });
@@ -137,11 +145,13 @@ export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingC
         serviceId: service.id,
         day,
         time,
-        phone: values.phone,
+        documentType: values.documentType,
+        documentNumber: cleanDocument(values.documentType, values.document),
         notes: values.notes,
-        firstName: askName ? values.firstName : undefined,
-        lastName: askName ? values.lastName : undefined,
+        firstName: askDetails ? values.firstName : undefined,
+        lastName: askDetails ? values.lastName : undefined,
         email: askDetails ? values.email : undefined,
+        phone: askDetails ? values.phone : undefined,
       });
       if (result.status === "booked") {
         setVisit(result.visit);
@@ -151,9 +161,6 @@ export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingC
       } else if (result.status === "needs_details") {
         setNeed("details");
         setNeedMessage(result.message);
-      } else if (result.status === "needs_name") {
-        setNeed((current) => (current === "details" ? "details" : "name"));
-        setNeedMessage(result.message);
       } else if (result.reason === "slot_taken") {
         setTime(null);
         setStep("pick");
@@ -161,7 +168,8 @@ export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingC
         scrollToTop();
         router.refresh();
       } else {
-        setProblem({ message: result.message, field: result.reason === "phone" || result.reason === "email" ? result.reason : undefined });
+        const field = result.reason === "document" || result.reason === "phone" || result.reason === "email" ? result.reason : undefined;
+        setProblem({ message: result.message, field });
       }
     });
   };
@@ -172,7 +180,7 @@ export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingC
     setStep("pick");
     setNeed("none");
     setNeedMessage(null);
-    setValues((current) => ({ ...EMPTY, phone: current.phone }));
+    setValues(EMPTY);
     scrollToTop();
     router.refresh();
   };

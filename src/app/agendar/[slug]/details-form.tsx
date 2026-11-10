@@ -3,22 +3,32 @@
 import { useEffect, useId, useRef, type FormEvent, type ReactNode } from "react";
 
 import { Icon } from "@/components/crm/icons";
+import {
+  DOCUMENT_LABEL,
+  DOCUMENT_TYPES,
+  formatDocumentInput,
+  splitTypedDocument,
+  type DocumentType,
+} from "@/lib/booking/document";
 import { formatPhoneInput } from "@/lib/booking/phone";
+import { WHATSAPP_URL } from "@/lib/site-config";
 
 export type DetailsValues = {
-  phone: string;
+  documentType: DocumentType;
+  /** The document number as typed ("12.345.678"). */
+  document: string;
   notes: string;
+  /** A new patient's details. */
   firstName: string;
   lastName: string;
   email: string;
-  /** Booking for someone else (a child, a relative) on this number. */
-  other: boolean;
+  phone: string;
 };
 
-/** Which extra fields the patient must fill: none (a known number), the name, or name and email (a new patient). */
-export type Need = "none" | "name" | "details";
+/** none: a cédula the centre may know · details: a new patient, who gives name, last name, email and mobile. */
+export type Need = "none" | "details";
 
-export type FormProblem = { message: string; field?: "phone" | "email" | "name" };
+export type FormProblem = { message: string; field?: "document" | "phone" | "email" | "name" };
 
 const input =
   "h-12 w-full min-w-0 rounded-xl border border-outline bg-white px-3.5 text-[16px] text-navy outline-none transition-[border-color,box-shadow] placeholder:text-stone hover:border-navy/50 focus:border-navy focus:shadow-[0_0_0_3px_rgba(27,42,85,0.1)] aria-invalid:border-coral aria-invalid:focus:shadow-[0_0_0_3px_rgba(217,83,79,0.14)]";
@@ -35,10 +45,10 @@ function Label({ htmlFor, children, hint }: { htmlFor: string; children: ReactNo
 }
 
 /**
- * The patient's details. A known number books with nothing else: the
- * patient's record is used as it is and never shown here. A new number, or a
- * booking for someone else, asks for name, last name and email; a number that
- * several patients share asks whose visit it is.
+ * The patient's details. The cédula (or passport) finds the patient's
+ * record, which is used as it is and never shown here. A document the centre
+ * does not know asks for name, last name, email and mobile to register the
+ * patient. A child without a cédula is booked by WhatsApp.
  */
 export function DetailsForm({
   values,
@@ -65,18 +75,27 @@ export function DetailsForm({
   const id = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const firstName = useRef<HTMLInputElement>(null);
-  const askDetails = need === "details" || values.other;
-  const askName = askDetails || need === "name";
+  const passport = values.documentType === "P";
 
   // Arriving at the step moves focus to its title, for keyboards and screen readers.
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, []);
 
-  // When the answer asks for more, focus the first new field.
+  // When the answer asks for the new patient's details, focus the first one.
   useEffect(() => {
-    if (need !== "none") firstName.current?.focus();
+    if (need === "details") firstName.current?.focus();
   }, [need]);
+
+  const typeDocument = (value: string) => {
+    // "V-12.345.678" typed whole also picks the type.
+    const typed = passport ? null : splitTypedDocument(value);
+    if (typed) onChange({ documentType: typed.type, document: formatDocumentInput(typed.type, typed.rest) });
+    else onChange({ document: formatDocumentInput(values.documentType, value) });
+  };
+
+  const chooseType = (type: DocumentType) =>
+    onChange({ documentType: type, document: formatDocumentInput(type, values.document) });
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -96,107 +115,139 @@ export function DetailsForm({
 
       <div>
         <h2 ref={heading} tabIndex={-1} className="font-serif text-[30px] leading-tight tracking-[-0.01em] outline-none">
-          Tus datos
+          Datos del paciente
         </h2>
         <p className="mt-1.5 text-[15px] text-muted">
-          Con tu número de celular encontramos tu ficha si ya eres paciente del centro.
+          Con la cédula encontramos la ficha del paciente si ya se ha atendido en el centro.
         </p>
       </div>
 
       <div className="lg:hidden">{summary}</div>
 
       <div>
-        <Label htmlFor={`${id}-phone`} hint="Obligatorio">
-          Número de celular
-        </Label>
-        <input
-          id={`${id}-phone`}
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="0412-1234567"
-          value={values.phone}
-          onChange={(e) => onChange({ phone: formatPhoneInput(e.target.value) })}
-          aria-invalid={problem?.field === "phone" || undefined}
-          aria-describedby={`${id}-phone-hint`}
-          className={`${input} font-medium tracking-[0.01em] tabular-nums`}
-        />
-        <p id={`${id}-phone-hint`} className="mt-1.5 text-[13px] text-muted">
-          Lo usamos para reconocerte y confirmar tu cita. Si vives fuera, escríbelo con el código de tu país (+…).
+        <div className="mb-1.5 flex items-center justify-between gap-3">
+          <label htmlFor={`${id}-document`} className="text-[14px] font-medium text-navy">
+            {passport ? "Pasaporte" : "Cédula de identidad"}
+          </label>
+          <div role="radiogroup" aria-label="Tipo de documento" className="inline-flex rounded-lg bg-sand p-0.5">
+            {DOCUMENT_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                role="radio"
+                aria-checked={values.documentType === type}
+                onClick={() => chooseType(type)}
+                className={`h-7 rounded-md px-2.5 text-[12px] font-medium transition-colors ${
+                  values.documentType === type ? "bg-white text-navy shadow-[0_1px_2px_rgba(27,42,85,0.15)]" : "text-muted hover:text-navy"
+                }`}
+              >
+                {DOCUMENT_LABEL[type]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div
+          className={`flex h-12 items-center overflow-hidden rounded-xl border bg-white transition-[border-color,box-shadow] focus-within:shadow-[0_0_0_3px_rgba(27,42,85,0.1)] ${
+            problem?.field === "document" ? "border-coral" : "border-outline hover:border-navy/50 focus-within:border-navy"
+          }`}
+        >
+          <span aria-hidden="true" className="flex h-full items-center border-r border-line bg-cream px-3.5 text-[16px] font-medium text-muted">
+            {passport ? "Nº" : `${values.documentType}-`}
+          </span>
+          <input
+            id={`${id}-document`}
+            inputMode={passport ? "text" : "numeric"}
+            autoComplete="off"
+            autoCapitalize={passport ? "characters" : "off"}
+            placeholder={passport ? "AB123456" : "12.345.678"}
+            value={values.document}
+            onChange={(e) => typeDocument(e.target.value)}
+            aria-invalid={problem?.field === "document" || undefined}
+            aria-describedby={`${id}-document-hint`}
+            className="h-full min-w-0 flex-1 bg-transparent px-3.5 text-[16px] font-medium tracking-[0.02em] text-navy tabular-nums outline-none placeholder:font-normal placeholder:text-stone"
+          />
+        </div>
+        <p id={`${id}-document-hint`} className="mt-1.5 text-[13px] leading-relaxed text-muted">
+          La de quien va a la consulta: si la cita es para tu hijo, escribe su cédula. ¿No tiene cédula?{" "}
+          <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-teal hover:text-navy">
+            Agéndala por WhatsApp
+          </a>
+          .
         </p>
       </div>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-cream/60 px-4 py-3 text-[14px] text-ink transition-colors hover:border-outline">
-        <input
-          type="checkbox"
-          checked={values.other}
-          onChange={(e) => onChange({ other: e.target.checked })}
-          className="mt-0.5 size-[18px] shrink-0 accent-navy"
-        />
-        <span>
-          <span className="font-medium text-navy">La cita es para otra persona</span>
-          <span className="block text-[13px] text-muted">Un hijo, tu pareja o un familiar que use tu número.</span>
-        </span>
-      </label>
-
-      {needMessage && !values.other && (
-        <p role="status" className="booking-enter flex gap-3 rounded-xl bg-frost px-4 py-3 text-[14px] leading-relaxed text-navy">
-          <Icon name="note" className="mt-0.5 size-[18px] shrink-0 text-teal" />
-          {needMessage}
-        </p>
-      )}
-
-      {askName && (
-        <div className="booking-enter grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor={`${id}-first`}>{values.other ? "Nombre del paciente" : "Nombre"}</Label>
+      {need === "details" && (
+        <>
+          {needMessage && (
+            <p role="status" className="booking-enter flex gap-3 rounded-xl bg-frost px-4 py-3 text-[14px] leading-relaxed text-navy">
+              <Icon name="note" className="mt-0.5 size-[18px] shrink-0 text-teal" />
+              {needMessage}
+            </p>
+          )}
+          <div className="booking-enter grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor={`${id}-first`}>Nombre</Label>
+              <input
+                ref={firstName}
+                id={`${id}-first`}
+                autoComplete="given-name"
+                maxLength={80}
+                value={values.firstName}
+                onChange={(e) => onChange({ firstName: e.target.value })}
+                aria-invalid={(problem?.field === "name" && !values.firstName.trim()) || undefined}
+                className={input}
+              />
+            </div>
+            <div>
+              <Label htmlFor={`${id}-last`}>Apellido</Label>
+              <input
+                id={`${id}-last`}
+                autoComplete="family-name"
+                maxLength={80}
+                value={values.lastName}
+                onChange={(e) => onChange({ lastName: e.target.value })}
+                aria-invalid={(problem?.field === "name" && !values.lastName.trim()) || undefined}
+                className={input}
+              />
+            </div>
+          </div>
+          <div className="booking-enter">
+            <Label htmlFor={`${id}-phone`} hint="Para confirmar la cita">
+              Número de celular
+            </Label>
             <input
-              ref={firstName}
-              id={`${id}-first`}
-              autoComplete={values.other ? "off" : "given-name"}
-              maxLength={80}
-              value={values.firstName}
-              onChange={(e) => onChange({ firstName: e.target.value })}
-              aria-invalid={(problem?.field === "name" && !values.firstName.trim()) || undefined}
+              id={`${id}-phone`}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="0412-1234567"
+              value={values.phone}
+              onChange={(e) => onChange({ phone: formatPhoneInput(e.target.value) })}
+              aria-invalid={problem?.field === "phone" || undefined}
+              className={`${input} tabular-nums`}
+            />
+          </div>
+          <div className="booking-enter">
+            <Label htmlFor={`${id}-email`}>Correo electrónico</Label>
+            <input
+              id={`${id}-email`}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              maxLength={120}
+              placeholder="nombre@correo.com"
+              value={values.email}
+              onChange={(e) => onChange({ email: e.target.value })}
+              aria-invalid={problem?.field === "email" || undefined}
               className={input}
             />
           </div>
-          <div>
-            <Label htmlFor={`${id}-last`}>{values.other ? "Apellido del paciente" : "Apellido"}</Label>
-            <input
-              id={`${id}-last`}
-              autoComplete={values.other ? "off" : "family-name"}
-              maxLength={80}
-              value={values.lastName}
-              onChange={(e) => onChange({ lastName: e.target.value })}
-              aria-invalid={(problem?.field === "name" && !values.lastName.trim()) || undefined}
-              className={input}
-            />
-          </div>
-        </div>
-      )}
-
-      {askDetails && (
-        <div className="booking-enter">
-          <Label htmlFor={`${id}-email`}>Correo electrónico</Label>
-          <input
-            id={`${id}-email`}
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            maxLength={120}
-            placeholder="nombre@correo.com"
-            value={values.email}
-            onChange={(e) => onChange({ email: e.target.value })}
-            aria-invalid={problem?.field === "email" || undefined}
-            className={input}
-          />
-        </div>
+        </>
       )}
 
       <div>
         <Label htmlFor={`${id}-notes`} hint="Opcional">
-          Notas para tu cita
+          Notas para la cita
         </Label>
         <textarea
           id={`${id}-notes`}
@@ -236,7 +287,7 @@ export function DetailsForm({
         </button>
         <p className="flex gap-2 text-[12px] leading-relaxed text-stone">
           <Icon name="lock" className="mt-px size-3.5 shrink-0" />
-          Por tu privacidad, esta página nunca muestra los datos de tu ficha. Para actualizarlos, avísanos en recepción.
+          Por tu privacidad, esta página nunca muestra los datos de la ficha. Para actualizarlos, avísanos en recepción.
         </p>
       </div>
     </form>

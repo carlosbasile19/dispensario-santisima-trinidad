@@ -602,13 +602,15 @@ export type Database = {
         Args: {
           calendar: string
           client?: string
+          document_number: string
+          document_type: string
           email?: string
           first_name?: string
           last_name?: string
           local_day: string
           local_time: string
           notes?: string
-          phone: string
+          phone?: string
           service: string
         }
         Returns: Json
@@ -692,7 +694,6 @@ export type Database = {
       is_member: { Args: never; Returns: boolean }
       is_my_appointment: { Args: { appointment: string }; Returns: boolean }
       is_my_patient: { Args: { patient: string }; Returns: boolean }
-      name_key: { Args: { name: string }; Returns: string }
       normalize_phone: { Args: { raw: string }; Returns: string }
       payment_method_currency: {
         Args: { method: Database["public"]["Enums"]["payment_method"] }

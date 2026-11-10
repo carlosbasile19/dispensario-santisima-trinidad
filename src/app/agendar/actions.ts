@@ -3,6 +3,7 @@
 import { createHmac } from "node:crypto";
 import { headers } from "next/headers";
 
+import { cleanDocument, isDocumentType, isValidDocument } from "@/lib/booking/document";
 import { isBookingPhone, normalizePhone } from "@/lib/booking/phone";
 import type { BookedVisit, BookingRequest, BookingResult } from "@/lib/booking/types";
 import { isIsoDate, isTime, isUuid } from "@/lib/crm/clinic";
@@ -10,19 +11,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // Books a visit from a public booking page. Patients have no account: the
 // database function book_online (service role only) recognises them by their
-// mobile number and answers only a status, never anything about the patient.
-// Everything the browser sends is checked here and again in the database.
+// cédula or passport and answers only a status, never anything about the
+// patient. Everything the browser sends is checked here and again in the
+// database.
 
 const GENERIC = "No pudimos agendar la cita. Inténtalo de nuevo en unos segundos.";
+const PHONE_HELP = "Escribe un número de celular: 04xx-xxxxxxx, o con el código del país si es del exterior (+…).";
+const DOCUMENT_HELP = "Revisa la cédula: de 5 a 10 números. Un pasaporte lleva de 4 a 15 letras y números.";
 
 const MESSAGES: Record<string, BookingResult> = {
   needs_details: {
     status: "needs_details",
-    message: "Es tu primera vez agendando con este número. Completa tus datos para crear tu ficha.",
-  },
-  needs_name: {
-    status: "needs_name",
-    message: "Más de un paciente usa este número. Escribe el nombre y el apellido de quien va a la cita.",
+    message: "No encontramos una ficha con esta cédula. Completa los datos del paciente para registrarlo.",
   },
   slot_taken: {
     status: "error",
@@ -31,7 +31,7 @@ const MESSAGES: Record<string, BookingResult> = {
   },
   too_many: {
     status: "error",
-    message: "Ya tienes 3 citas agendadas en línea. Para agendar otra, escríbenos por WhatsApp.",
+    message: "Este paciente ya tiene 3 citas agendadas en línea. Para agendar otra, escríbenos por WhatsApp.",
   },
   rate_limited: {
     status: "error",
@@ -42,11 +42,8 @@ const MESSAGES: Record<string, BookingResult> = {
     reason: "closed",
     message: "Este calendario no está recibiendo citas en línea en este momento. Escríbenos por WhatsApp para agendar.",
   },
-  invalid_phone: {
-    status: "error",
-    reason: "phone",
-    message: "Escribe un número de celular: 04xx-xxxxxxx, o con el código de tu país si es del exterior (+…).",
-  },
+  invalid_document: { status: "error", reason: "document", message: DOCUMENT_HELP },
+  invalid_phone: { status: "error", reason: "phone", message: PHONE_HELP },
   invalid_email: { status: "error", reason: "email", message: "Revisa el correo electrónico." },
   invalid: { status: "error", message: "Revisa los datos e inténtalo de nuevo." },
 };
@@ -82,30 +79,40 @@ function parseVisit(data: Record<string, unknown>): BookedVisit | null {
 
 export async function bookOnline(request: BookingRequest): Promise<BookingResult> {
   if (!request || typeof request !== "object") return MESSAGES.invalid;
-  const { calendarId, serviceId, day, time } = request;
+  const { calendarId, serviceId, day, time, documentType } = request;
   if (!isUuid(calendarId) || !isUuid(serviceId) || !isIsoDate(day) || !isTime(time)) return MESSAGES.invalid;
 
-  const phone = field(request.phone, 40);
-  if (!isBookingPhone(normalizePhone(phone))) return MESSAGES.invalid_phone;
+  const typed = field(request.documentNumber, 30);
+  if (!isDocumentType(documentType) || !isValidDocument(documentType, typed)) return MESSAGES.invalid_document;
   const firstName = field(request.firstName, 80);
   const lastName = field(request.lastName, 80);
   const email = field(request.email, 120).toLowerCase();
+  const phone = field(request.phone, 40);
   if (email && !EMAIL.test(email)) return MESSAGES.invalid_email;
+  if (phone && !isBookingPhone(normalizePhone(phone))) return MESSAGES.invalid_phone;
   const notes = typeof request.notes === "string" ? request.notes.trim().slice(0, 1000) : "";
 
   const secret = process.env.SUPABASE_SECRET_KEY;
   const admin = createAdminClient();
-  if (!admin || !secret) return { status: "error", reason: "closed", message: "La reserva en línea no está disponible en este momento. Escríbenos por WhatsApp." };
+  if (!admin || !secret) {
+    return {
+      status: "error",
+      reason: "closed",
+      message: "La reserva en línea no está disponible en este momento. Escríbenos por WhatsApp.",
+    };
+  }
 
   const { data, error } = await admin.rpc("book_online", {
     calendar: calendarId,
     service: serviceId,
     local_day: day,
     local_time: time,
-    phone,
+    document_type: documentType,
+    document_number: cleanDocument(documentType, typed),
     first_name: firstName || undefined,
     last_name: lastName || undefined,
     email: email || undefined,
+    phone: phone || undefined,
     notes: notes || undefined,
     client: await clientHash(secret),
   });
