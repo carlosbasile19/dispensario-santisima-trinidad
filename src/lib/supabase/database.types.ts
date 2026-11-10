@@ -925,6 +925,13 @@ export type Database = {
             foreignKeyName: "whatsapp_doctor_alerts_appointment_id_fkey"
             columns: ["appointment_id"]
             isOneToOne: false
+            referencedRelation: "appointment_balances"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_doctor_alerts_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
@@ -1346,7 +1353,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      sees_patient: { Args: { patient: string }; Returns: boolean }
       search_patients: {
         Args: { max_rows?: number; query?: string }
         Returns: {
@@ -1378,6 +1384,7 @@ export type Database = {
         }
       }
       sees_all_schedule: { Args: never; Returns: boolean }
+      sees_patient: { Args: { patient: string }; Returns: boolean }
       set_exchange_rate: {
         Args: { bs_per_usd: number; rate_day: string }
         Returns: undefined
