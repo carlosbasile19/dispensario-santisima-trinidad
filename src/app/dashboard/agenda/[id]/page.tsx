@@ -51,6 +51,8 @@ import { WhatsAppCard } from "./whatsapp-card";
 
 export const metadata: Metadata = { title: "Cita" };
 
+const quickAction = "flex min-w-0 items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-3 active:bg-cream";
+
 const paidAt = new Intl.DateTimeFormat("es-VE", { timeZone: "America/Caracas", hour: "numeric", minute: "2-digit" });
 
 type Params = PageProps<"/dashboard/agenda/[id]">["params"];
@@ -168,13 +170,46 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
             )}
             <Link
               href={`/dashboard/agenda?fecha=${day}`}
-              className="inline-flex h-10 items-center rounded-lg border border-outline bg-white px-4 text-sm font-medium hover:border-navy"
+              className="inline-flex h-10 items-center rounded-lg border border-outline bg-white px-4 text-sm font-medium whitespace-nowrap hover:border-navy"
             >
               Volver a la agenda
             </Link>
           </>
         }
       />
+
+      {/* Phones and upright tablets: what the front desk reaches for first. */}
+      {patient && (
+        <nav aria-label="Paciente" className="grid grid-cols-2 gap-3 lg:hidden">
+          {patient.phone ? (
+            <a href={`tel:${patient.phone.replace(/[^\d+]/g, "")}`} className={quickAction}>
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-mint/30 text-[#135c62]">
+                <Icon name="phone" className="size-[18px]" />
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className="block text-sm font-medium">Llamar</span>
+                <span className="block truncate text-[12px] text-muted">{patient.phone}</span>
+              </span>
+            </a>
+          ) : (
+            <span className={`${quickAction} text-stone`}>
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sand">
+                <Icon name="phone" className="size-[18px]" />
+              </span>
+              <span className="text-sm">Sin teléfono</span>
+            </span>
+          )}
+          <Link href={`/dashboard/pacientes/${patient.id}`} className={quickAction}>
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-frost text-navy">
+              <Icon name="id-card" className="size-[18px]" />
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className="block text-sm font-medium">Ver ficha</span>
+              <span className="block truncate text-[12px] text-muted">{formatDocument(patient) ?? "Sin cédula"}</span>
+            </span>
+          </Link>
+        </nav>
+      )}
 
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_380px]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -183,7 +218,61 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
               title="Servicios"
               hint={`${appointment.items.length} ${appointment.items.length === 1 ? "servicio" : "servicios"}${money ? ` · total ${formatUsd(balance.total)}` : ""}`}
             />
-            <table className="w-full min-w-[560px] border-collapse">
+            {/* Phones: each service as a row, its price on the right, "Editar" under it. */}
+            <ul className="divide-y divide-line sm:hidden">
+              {appointment.items.map((item) => {
+                const professional = item.professional_id ? professionals.byId.get(item.professional_id) : null;
+                const changed = toCents(item.price_usd) !== toCents(item.list_price_usd);
+                return (
+                  <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3.5">
+                    <div className="min-w-0">
+                      <p className="font-medium">{item.service?.name ?? "Servicio"}</p>
+                      <p className="mt-0.5 text-[13px] text-muted">
+                        {professional ? (
+                          <span className={professional.id === viewer.id ? "font-medium text-[#135c62]" : ""}>
+                            {professional.name}
+                            {professional.id === viewer.id && " (tú)"}
+                          </span>
+                        ) : (
+                          <>{item.service ? `${AREA_LABEL[item.service.area]} · ` : ""}sin asignar</>
+                        )}
+                      </p>
+                      {manage && (
+                        <div className="mt-2">
+                          <ItemControls
+                            itemId={item.id}
+                            appointmentId={id}
+                            serviceName={item.service?.name ?? "Servicio"}
+                            professionalId={item.professional_id}
+                            price={item.price_usd}
+                            listPrice={item.list_price_usd}
+                            professionals={professionals.list}
+                            canRemove={appointment.items.length > 1}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {money && (
+                      <p className="shrink-0 text-right font-mono text-sm whitespace-nowrap">
+                        {formatUsd(item.price_usd)}
+                        {changed && (
+                          <span className="block font-sans text-[12px] text-stone">
+                            Centro: <s>{formatUsd(item.list_price_usd)}</s>
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+              {money && (
+                <li className="flex justify-between gap-3 px-4 py-3.5 text-sm font-medium">
+                  <span>Total</span>
+                  <span className="font-mono">{formatUsd(balance.total)}</span>
+                </li>
+              )}
+            </ul>
+            <table className="hidden w-full min-w-[560px] border-collapse sm:table">
               <thead>
                 <tr className="border-b border-line">
                   <th className={th}>Servicio</th>
@@ -265,7 +354,7 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
               <div className="flex flex-col gap-5 px-5 py-5">
                 <ActionForm action={setAppointmentStatus} className="flex flex-col gap-2">
                   <input type="hidden" name="appointment" value={id} />
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 max-sm:grid max-sm:grid-cols-2">
                     {STATUS_ACTIONS[appointment.status].map(([target, label]) => (
                       <SubmitButton
                         key={target}

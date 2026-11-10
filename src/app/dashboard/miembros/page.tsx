@@ -4,7 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import { Icon } from "@/components/crm/icons";
 import { Avatar, Badge, Card, CardHeader, NoAccess, PageHeader, RoleBadge, td, th } from "@/components/crm/ui";
 import { Select } from "@/components/crm/select";
-import { PERMISSION_MATRIX, ROLES, ROLE_INFO, roleOptions } from "@/lib/crm/roles";
+import { PERMISSION_MATRIX, ROLES, ROLE_INFO, roleOptions, type Role } from "@/lib/crm/roles";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { setMemberRole } from "../actions";
@@ -107,7 +107,39 @@ async function Team({ selfId }: { selfId: string }) {
   const members = data ?? [];
 
   return (
-    <TeamCard hint={`${members.length} ${members.length === 1 ? "persona" : "personas"}`}>
+    <TeamCard
+      hint={`${members.length} ${members.length === 1 ? "persona" : "personas"}`}
+      list={members.map((m) => {
+        const name = m.full_name?.trim() || m.email || "Sin nombre";
+        return (
+          <li key={m.id} className="flex flex-col gap-3 px-4 py-4 sm:px-5">
+            <div className="flex items-center gap-3">
+              <Avatar name={name} src={m.avatar_url} />
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate font-medium">{name}</span>
+                <span className="mt-0.5 block truncate text-[13px] text-muted">{m.email}</span>
+              </span>
+              {m.id === selfId ? <span className="text-[13px] text-stone">Tú</span> : <Badge tone={m.role ? "teal" : "outline"}>{m.role ? "Activo" : "Sin acceso"}</Badge>}
+            </div>
+            {m.id === selfId ? (
+              m.role && (
+                <div>
+                  <RoleBadge role={m.role} />
+                </div>
+              )
+            ) : (
+              <>
+                <RoleForm id={m.id} name={name} role={m.role} className="min-w-0 flex-1" />
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[13px] text-muted">Alta: {joined.format(new Date(m.created_at))}</span>
+                  <ResetPassword memberId={m.id} />
+                </div>
+              </>
+            )}
+          </li>
+        );
+      })}
+    >
       {members.map((m) => {
         const name = m.full_name?.trim() || m.email || "Sin nombre";
         return (
@@ -128,27 +160,7 @@ async function Team({ selfId }: { selfId: string }) {
                   <span className="text-[13px] text-stone">Tú</span>
                 </span>
               ) : (
-                <form action={setMemberRole} className="flex items-center gap-2">
-                  <input type="hidden" name="member" value={m.id} />
-                  <Select
-                    name="role"
-                    size="sm"
-                    defaultValue={m.role ?? ""}
-                    required
-                    placeholder="Sin perfil"
-                    aria-label={`Perfil de ${name}`}
-                    options={roleOptions()}
-                    searchable={false}
-                    className="w-[190px]"
-                    panelMinWidth={340}
-                  />
-                  <button
-                    type="submit"
-                    className="h-9 rounded-lg border border-outline px-3 text-[13px] font-medium hover:border-navy"
-                  >
-                    Guardar
-                  </button>
-                </form>
+                <RoleForm id={m.id} name={name} role={m.role} className="w-[190px]" />
               )}
             </td>
             <td className={td}>
@@ -163,13 +175,40 @@ async function Team({ selfId }: { selfId: string }) {
   );
 }
 
+/** The picker that changes a member's profile, with its "Guardar". */
+function RoleForm({ id, name, role, className }: { id: string; name: string; role: Role | null; className: string }) {
+  return (
+    <form action={setMemberRole} className="flex items-center gap-2">
+      <input type="hidden" name="member" value={id} />
+      <Select
+        name="role"
+        size="sm"
+        defaultValue={role ?? ""}
+        required
+        placeholder="Sin perfil"
+        aria-label={`Perfil de ${name}`}
+        options={roleOptions()}
+        searchable={false}
+        className={className}
+        panelMinWidth={340}
+      />
+      <button type="submit" className="h-9 rounded-lg border border-outline px-3 text-[13px] font-medium hover:border-navy">
+        Guardar
+      </button>
+    </form>
+  );
+}
+
 // Frame of the "Equipo" card, shared by the list and its loading state so the
 // title and column headings show while the rows stream in.
-function TeamCard({ hint, children }: { hint: string; children: ReactNode }) {
+// On phones and upright tablets the members are a list (`list`) in place of
+// the table.
+function TeamCard({ hint, list, children }: { hint: string; list: ReactNode; children: ReactNode }) {
   return (
     <Card className="overflow-x-auto">
       <CardHeader title="Equipo" hint={hint} />
-      <table className="w-full min-w-[920px] border-collapse">
+      <ul className="divide-y divide-line lg:hidden">{list}</ul>
+      <table className="hidden w-full min-w-[920px] border-collapse lg:table">
         <thead>
           <tr className="border-b border-line">
             <th className={th}>Miembro</th>
@@ -192,7 +231,18 @@ function TeamLoading() {
   const bar = "block rounded bg-sand";
   const line = "inline-block rounded bg-sand align-middle";
   return (
-    <TeamCard hint="Cargando…">
+    <TeamCard
+      hint="Cargando…"
+      list={[0, 1, 2].map((row) => (
+        <li key={row} aria-hidden="true" className="flex animate-pulse items-center gap-3 px-4 py-4 sm:px-5">
+          <span className="size-9 shrink-0 rounded-full bg-sand" />
+          <span className="flex flex-1 flex-col gap-2">
+            <span className={`${bar} h-3.5 w-36`} />
+            <span className={`${bar} h-3 w-44`} />
+          </span>
+        </li>
+      ))}
+    >
       {[0, 1, 2].map((row) => (
         <tr key={row} aria-hidden="true" className="animate-pulse">
           <td className={td}>

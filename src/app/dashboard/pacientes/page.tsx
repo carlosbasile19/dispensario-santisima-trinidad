@@ -78,19 +78,19 @@ async function PatientTable({
         title={query ? `Resultados para “${query}”` : "Todos"}
         hint={`${patients.length === LIMIT ? `Los primeros ${LIMIT}` : patients.length} ${patients.length === 1 ? "paciente" : "pacientes"}, por apellido`}
         action={
-          <form action="/dashboard/pacientes" className="flex gap-2">
+          <form action="/dashboard/pacientes" className="flex w-full gap-2 sm:w-auto">
             <input
               type="search"
               name="q"
               defaultValue={query}
               placeholder="Nombre o cédula"
               aria-label="Buscar paciente"
-              className="h-9 w-[200px] rounded-lg border border-outline bg-white px-3 text-sm outline-none focus:border-navy sm:w-[260px]"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-outline bg-white px-3 text-sm outline-none focus:border-navy sm:w-[260px] sm:flex-none"
             />
             <button
               type="submit"
               aria-label="Buscar"
-              className="grid size-9 place-items-center rounded-lg border border-outline bg-white hover:border-navy"
+              className="grid size-9 shrink-0 place-items-center rounded-lg border border-outline bg-white hover:border-navy pointer-coarse:size-11"
             >
               <Icon name="search" className="size-4" />
             </button>
@@ -98,7 +98,29 @@ async function PatientTable({
         }
       />
       {patients.length ? (
-        <table className="w-full min-w-[720px] border-collapse">
+        <>
+        {/* Phones and upright tablets: one row per patient, the whole row opens the record. */}
+        <ul className="divide-y divide-line lg:hidden">
+          {patients.map((p) => (
+            <li key={p.id}>
+              <Link href={`/dashboard/pacientes/${p.id}`} className="flex items-center gap-3.5 px-4 py-3.5 active:bg-cream sm:px-5">
+                <Avatar name={patientName(p)} />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate font-medium">
+                    {p.last_name}, {p.first_name}
+                  </span>
+                  <span className="mt-1 block truncate text-[13px] text-muted">
+                    {[formatDocument(p) ?? "Sin cédula", p.birth_date && `${ageOn(p.birth_date, today)} años`, p.phone]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                <Icon name="chevron-right" className="size-4 text-stone" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <table className="hidden w-full min-w-[720px] border-collapse lg:table">
           <thead>
             <tr className="border-b border-line">
               <th className={th}>Paciente</th>
@@ -125,6 +147,7 @@ async function PatientTable({
             ))}
           </tbody>
         </table>
+        </>
       ) : (
         <EmptyState
           icon="patients"

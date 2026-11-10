@@ -27,6 +27,8 @@ export const metadata: Metadata = { title: "Agenda" };
 
 type SearchParams = PageProps<"/dashboard/agenda">["searchParams"];
 
+const weekdayFormat = new Intl.DateTimeFormat("es-VE", { timeZone: "UTC", weekday: "short" });
+
 const button =
   "inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-outline bg-white px-3 text-sm font-medium text-navy hover:border-navy";
 
@@ -123,27 +125,31 @@ async function DayBar({ searchParams, own }: { searchParams: SearchParams; own: 
     return `/dashboard/agenda?${query}`;
   };
 
+  // The week on screen, Monday to Sunday, for the strip of days.
+  const monday = addDays(day, -((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7));
+  const week = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Link href={link(addDays(day, -1))} className={button} aria-label="Día anterior">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
+      <Link href={link(addDays(day, -1))} className={`${button} max-lg:hidden`} aria-label="Día anterior">
         <Icon name="chevron-left" className="size-4" />
       </Link>
-      <Link href={link(addDays(day, 1))} className={button} aria-label="Día siguiente">
+      <Link href={link(addDays(day, 1))} className={`${button} max-lg:hidden`} aria-label="Día siguiente">
         <Icon name="chevron-right" className="size-4" />
       </Link>
-      <h2 className="mr-auto px-2 text-lg font-medium first-letter:uppercase">
+      <h2 className="mr-auto text-lg font-medium first-letter:uppercase max-lg:order-1 lg:px-2">
         {formatDay(day)}
         {day === today && <span className="ml-2 text-[13px] font-normal text-teal">Hoy</span>}
       </h2>
-      <Form action="/dashboard/agenda" className="flex flex-wrap items-center gap-2">
-        <DatePicker name="fecha" defaultValue={day} aria-label="Ir al día" submitOnChange className="w-[200px]" />
+      <Form action="/dashboard/agenda" className="flex w-full flex-wrap items-center gap-2 max-lg:order-4 lg:w-auto">
+        <DatePicker name="fecha" defaultValue={day} aria-label="Ir al día" submitOnChange className="min-w-[170px] flex-1 lg:w-[200px] lg:flex-none" />
         {!own && professionals.list.length > 0 && (
           <Select
             name="profesional"
             defaultValue={filter}
             aria-label="Profesional"
             submitOnChange
-            className="w-[230px]"
+            className="min-w-[200px] flex-1 lg:w-[230px] lg:flex-none"
             panelMinWidth={260}
             searchPlaceholder="Buscar profesional…"
             options={[
@@ -158,11 +164,47 @@ async function DayBar({ searchParams, own }: { searchParams: SearchParams; own: 
           />
         )}
         {day !== today && (
-          <Link href={link(today)} className={button}>
+          <Link href={link(today)} className={`${button} max-lg:hidden`}>
             Hoy
           </Link>
         )}
       </Form>
+      {day !== today && (
+        <Link href={link(today)} className="order-2 text-sm font-medium text-teal lg:hidden">
+          Ir a hoy
+        </Link>
+      )}
+
+      {/* Phones and upright tablets: the week as a strip of days, one tap each,
+          with the weeks before and after on the arrows. */}
+      <nav aria-label="Días de la semana" className="order-3 flex w-full items-center gap-1 lg:hidden">
+        <Link href={link(addDays(day, -7))} aria-label="Semana anterior" className="grid h-14 w-7 shrink-0 place-items-center text-stone active:text-navy">
+          <Icon name="chevron-left" className="size-4" />
+        </Link>
+        <ol className="grid min-w-0 flex-1 grid-cols-7 gap-1">
+          {week.map((date) => {
+            const selected = date === day;
+            return (
+              <li key={date}>
+                <Link
+                  href={link(date)}
+                  aria-current={selected ? "date" : undefined}
+                  aria-label={formatDay(date)}
+                  className={`flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl border ${
+                    selected ? "border-navy bg-navy text-white" : "border-line bg-white active:bg-sand"
+                  }`}
+                >
+                  <span className={`text-[11px] uppercase ${selected ? "text-mist" : "text-stone"}`}>{weekdayFormat.format(new Date(`${date}T12:00:00Z`)).slice(0, 3)}</span>
+                  <span className={`text-[15px] font-medium ${!selected && date === today ? "text-teal" : ""}`}>{Number(date.slice(8))}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+        <Link href={link(addDays(day, 7))} aria-label="Semana siguiente" className="grid h-14 w-7 shrink-0 place-items-center text-stone active:text-navy">
+          <Icon name="chevron-right" className="size-4" />
+        </Link>
+      </nav>
     </div>
   );
 }

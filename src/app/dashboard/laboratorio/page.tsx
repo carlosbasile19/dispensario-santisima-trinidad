@@ -105,7 +105,7 @@ async function Reports({ searchParams, viewer }: { searchParams: PageProps<"/das
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 pt-3 sm:px-5">
         <nav aria-label="Estado" className="-mb-px flex gap-5">
           {TABS.map((t) => (
             <Link
@@ -119,7 +119,7 @@ async function Reports({ searchParams, viewer }: { searchParams: PageProps<"/das
             </Link>
           ))}
         </nav>
-        <form action="/dashboard/laboratorio" className="mb-3 flex gap-2">
+        <form action="/dashboard/laboratorio" className="mb-3 flex w-full gap-2 sm:w-auto">
           <input type="hidden" name="estado" value={tab} />
           <input
             type="search"
@@ -127,16 +127,62 @@ async function Reports({ searchParams, viewer }: { searchParams: PageProps<"/das
             defaultValue={query}
             placeholder="Paciente o cédula"
             aria-label="Buscar por paciente"
-            className="h-9 w-[200px] rounded-lg border border-outline bg-white px-3 text-sm outline-none focus:border-navy sm:w-[240px]"
+            className="h-9 min-w-0 flex-1 rounded-lg border border-outline bg-white px-3 text-sm outline-none focus:border-navy sm:w-[240px] sm:flex-none"
           />
-          <button type="submit" aria-label="Buscar" className="grid size-9 place-items-center rounded-lg border border-outline bg-white hover:border-navy">
+          <button type="submit" aria-label="Buscar" className="grid size-9 shrink-0 place-items-center rounded-lg border border-outline bg-white hover:border-navy pointer-coarse:size-11">
             <Icon name="search" className="size-4" />
           </button>
         </form>
       </div>
 
       {reports.length ? (
-        <div className="overflow-x-auto">
+        <>
+        {/* Phones and upright tablets: one row per report, the whole row opens it. */}
+        <ul className="divide-y divide-line lg:hidden">
+          {reports.map((r) => {
+            const shown = r.summary.slice(0, 3);
+            return (
+              <li key={r.id}>
+                <Link href={`/dashboard/laboratorio/${r.id}`} className="flex items-start gap-3.5 px-4 py-3.5 active:bg-cream sm:px-5">
+                  <Avatar name={r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : "P"} />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="truncate font-medium">{r.patient ? `${r.patient.last_name}, ${r.patient.first_name}` : "Paciente"}</span>
+                      {r.status === "final" ? <Badge tone="teal">Validado</Badge> : <Badge tone="outline">Borrador</Badge>}
+                    </span>
+                    <span className="mt-1 block truncate text-[13px] text-muted">
+                      Nº {reportNumber(r.number)} · {formatDay(localDay(r.sampledAt), "short")}
+                      {r.revision > 1 && ` · rev. ${r.revision}`}
+                    </span>
+                    <span className="mt-2 flex flex-wrap items-center gap-1">
+                      {shown.length ? (
+                        shown.map((title) => (
+                          <span key={title} className="rounded-md bg-sand px-2 py-0.5 text-[12px] text-ink">
+                            {title}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[13px] text-stone">Sin exámenes</span>
+                      )}
+                      {r.summary.length > shown.length && <span className="px-1 text-[12px] text-muted">+{r.summary.length - shown.length}</span>}
+                      {r.delivered.length > 0 && (
+                        <span className="ml-auto flex gap-1 text-teal">
+                          {r.delivered.map((channel) => (
+                            <span key={channel} className="grid size-6 place-items-center rounded-md bg-mint/20">
+                              <Icon name={DELIVERY_ICON[channel]?.icon ?? "send"} className="size-3.5" />
+                              <span className="sr-only">{DELIVERY_ICON[channel]?.label}</span>
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[760px] border-collapse">
             <thead>
               <tr className="border-b border-line">
@@ -208,6 +254,7 @@ async function Reports({ searchParams, viewer }: { searchParams: PageProps<"/das
             </tbody>
           </table>
         </div>
+        </>
       ) : (
         <EmptyState
           icon="flask"
