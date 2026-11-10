@@ -9,7 +9,7 @@ import { isBookingPhone, normalizePhone } from "@/lib/booking/phone";
 import type { BookedVisit, BookingRequest, BookingResult } from "@/lib/booking/types";
 import { isIsoDate, isTime, isUuid } from "@/lib/crm/clinic";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { afterOnlineBooking } from "@/lib/whatsapp/send";
+import { afterOnlineBooking, deliverDoctorAlerts } from "@/lib/whatsapp/send";
 
 // Books a visit from a public booking page. Patients have no account: the
 // database function book_online (service role only) recognises them by their
@@ -125,13 +125,17 @@ export async function bookOnline(request: BookingRequest): Promise<BookingResult
 
   const answer = data as Record<string, unknown>;
   if (answer.status === "booked") {
-    // When the form offered WhatsApp: record the answer and send the
-    // confirmation after the response, so the patient never waits on it.
-    if (typeof request.whatsapp === "boolean") {
-      const optIn = request.whatsapp;
-      const documentNumber = cleanDocument(documentType, typed);
-      after(() => afterOnlineBooking({ documentType, documentNumber, day, time, optIn }));
-    }
+    // After the response, so the patient never waits on WhatsApp: the alert
+    // to the calendar's doctor and, when the form offered WhatsApp, the
+    // patient's answer and their confirmation.
+    const optIn = request.whatsapp;
+    const documentNumber = cleanDocument(documentType, typed);
+    after(() =>
+      Promise.all([
+        deliverDoctorAlerts(),
+        typeof optIn === "boolean" ? afterOnlineBooking({ documentType, documentNumber, day, time, optIn }) : null,
+      ]).then(() => undefined),
+    );
     const visit = parseVisit(answer);
     return visit ? { status: "booked", visit } : { status: "error", message: GENERIC };
   }

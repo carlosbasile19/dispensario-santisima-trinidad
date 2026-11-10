@@ -4,6 +4,7 @@ import { ActionForm, SubmitButton } from "@/components/crm/forms";
 import { Badge, Card, CardHeader } from "@/components/crm/ui";
 import { isBookingPhone } from "@/lib/booking/phone";
 import { formatDay, formatTime, localDay, type AppointmentStatus } from "@/lib/crm/clinic";
+import { getProfessionals } from "@/lib/crm/data";
 import { createClient } from "@/lib/supabase/server";
 import { MESSAGE_KIND_LABEL, MESSAGE_STATUS, REPLY_EFFECT_NOTE, REPLY_LABEL } from "@/lib/whatsapp/labels";
 import { sendWhatsAppConfirmation } from "../actions";
@@ -18,7 +19,8 @@ async function isAhead(startsAt: string) {
 
 /**
  * The visit's WhatsApp messages: what was sent, whether it arrived and what
- * the patient answered. The front desk can send the confirmation by hand.
+ * the patient answered, and the alert each doctor got. The front desk can
+ * send the patient's confirmation by hand.
  */
 export async function WhatsAppCard({
   appointmentId,
@@ -34,7 +36,7 @@ export async function WhatsAppCard({
   canSend: boolean;
 }) {
   const supabase = await createClient();
-  const [{ data: connectedNow }, { data: patient }, { data: messages }] = await Promise.all([
+  const [{ data: connectedNow }, { data: patient }, { data: messages }, { data: alerts }, professionals] = await Promise.all([
     supabase.rpc("whatsapp_connected"),
     supabase.from("patients").select("whatsapp_consent, phone_e164").eq("id", patientId).maybeSingle(),
     supabase
@@ -42,6 +44,13 @@ export async function WhatsAppCard({
       .select("id, kind, status, reply, reply_effect, error, created_at, sent_at, delivered_at, read_at, starts_at")
       .eq("appointment_id", appointmentId)
       .order("created_at"),
+    // RLS: everyone who sees the whole schedule, and each doctor their own.
+    supabase
+      .from("whatsapp_doctor_alerts")
+      .select("id, professional_id, status, error, created_at, sent_at, delivered_at, read_at")
+      .eq("appointment_id", appointmentId)
+      .order("created_at"),
+    getProfessionals(),
   ]);
   const upcoming = await isAhead(startsAt);
   const pending = status === "scheduled" || status === "confirmed";
@@ -105,6 +114,26 @@ export async function WhatsAppCard({
         ) : (
           why && <p className="text-muted">{why}</p>
         )}
+        {alerts?.length ? (
+          <ul className="flex flex-col gap-3">
+            {alerts.map((a) => {
+              const info = MESSAGE_STATUS[a.status] ?? { label: a.status, tone: "outline" as const };
+              const when = a.read_at ?? a.delivered_at ?? a.sent_at ?? a.created_at;
+              return (
+                <li key={a.id} className="flex flex-col gap-0.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate font-medium">
+                      Aviso a {professionals.byId.get(a.professional_id)?.name ?? "el médico"}
+                    </span>
+                    <Badge tone={info.tone}>{info.label}</Badge>
+                  </div>
+                  <p className="text-[13px] text-muted">{stamp(when)}</p>
+                  {a.error && (a.status === "failed" || a.status === "skipped") && <p className="text-[13px] text-[#b03a36]">{a.error}</p>}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
         {offerSend && (
           <ActionForm action={sendWhatsAppConfirmation}>
             <input type="hidden" name="appointment" value={appointmentId} />

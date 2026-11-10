@@ -862,6 +862,120 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_doctor_alerts: {
+        Row: {
+          appointment_id: string
+          conversation_id: string | null
+          created_at: string
+          delivered_at: string | null
+          error: string | null
+          error_code: string | null
+          failed_at: string | null
+          id: string
+          professional_id: string
+          read_at: string | null
+          sent_at: string | null
+          starts_at: string
+          status: string
+          template_language: string | null
+          template_name: string | null
+          to_phone: string
+          wamid: string | null
+        }
+        Insert: {
+          appointment_id: string
+          conversation_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error?: string | null
+          error_code?: string | null
+          failed_at?: string | null
+          id?: string
+          professional_id: string
+          read_at?: string | null
+          sent_at?: string | null
+          starts_at: string
+          status?: string
+          template_language?: string | null
+          template_name?: string | null
+          to_phone: string
+          wamid?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error?: string | null
+          error_code?: string | null
+          failed_at?: string | null
+          id?: string
+          professional_id?: string
+          read_at?: string | null
+          sent_at?: string | null
+          starts_at?: string
+          status?: string
+          template_language?: string | null
+          template_name?: string | null
+          to_phone?: string
+          wamid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_doctor_alerts_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_doctor_alerts_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_doctor_phones: {
+        Row: {
+          created_at: string
+          phone: string
+          professional_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          phone: string
+          professional_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          phone?: string
+          professional_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_doctor_phones_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_doctor_phones_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           appointment_id: string
@@ -966,6 +1080,7 @@ export type Database = {
           id: boolean
           phone: string | null
           send_confirmations: boolean
+          send_doctor_alerts: boolean
           send_reminders: boolean
           updated_at: string
           zernio_account_id: string | null
@@ -979,6 +1094,7 @@ export type Database = {
           id?: boolean
           phone?: string | null
           send_confirmations?: boolean
+          send_doctor_alerts?: boolean
           send_reminders?: boolean
           updated_at?: string
           zernio_account_id?: string | null
@@ -992,6 +1108,7 @@ export type Database = {
           id?: boolean
           phone?: string | null
           send_confirmations?: boolean
+          send_doctor_alerts?: boolean
           send_reminders?: boolean
           updated_at?: string
           zernio_account_id?: string | null
@@ -1281,6 +1398,21 @@ export type Database = {
         Returns: Json
       }
       whatsapp_connected: { Args: never; Returns: boolean }
+      whatsapp_doctor_alert_outbox: {
+        Args: { alerts: string[] }
+        Returns: {
+          first_name: string
+          id: string
+          last_name: string
+          on_visit: boolean
+          phone: string
+          professional_id: string
+          services: string
+          status: string
+          visit_starts_at: string
+          visit_status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
       whatsapp_outbox: {
         Args: { messages: string[] }
         Returns: {

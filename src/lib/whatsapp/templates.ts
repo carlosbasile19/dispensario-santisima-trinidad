@@ -8,6 +8,10 @@
 // forbids sending ID numbers) nor the service or a result, which could say
 // more than the patient wants: lab results travel only inside the PDF.
 //
+// The doctors' alert is the exception: it goes to the professional who will
+// see the patient, so it names the patient and the services booked with them,
+// still without the cédula, the phone or the patient's own notes.
+//
 // Changing a template's text means a new name (Meta reviews each one): add
 // it here, submit it from the WhatsApp page, and keep the old one until the
 // new one is approved.
@@ -19,8 +23,8 @@ export const TEMPLATE_LANGUAGE = "es";
 
 /** Messages about a visit (rows of whatsapp_messages). */
 export type MessageKind = "confirmation" | "reminder";
-/** Every template the clinic submits: the visit messages and the lab results. */
-export type TemplateKind = MessageKind | "lab_results";
+/** Every template the clinic submits: the visit messages, the lab results and the doctors' alert. */
+export type TemplateKind = MessageKind | "lab_results" | "doctor_alert";
 
 /** The three buttons of both templates, in order. Meta allows 25 characters each. */
 export const REPLY_BUTTONS = [
@@ -96,6 +100,22 @@ export const TEMPLATES: Record<TemplateKind, TemplateDefinition> = {
       "Llévalos a tu médico para que los interprete en tu próxima consulta.",
     ),
   },
+  doctor_alert: {
+    name: "nueva_cita_medico",
+    label: "Aviso al médico",
+    description: "Le llega al médico en cuanto se le agenda una cita, en línea o en recepción.",
+    buttons: false,
+    body: lines(
+      `Tienes una nueva cita agendada en el ${LEGAL_NAME}:`,
+      "",
+      "👤 Paciente: {{1}}",
+      "🗓️ Día: {{2}}",
+      "🕐 Hora: {{3}}",
+      "🩺 Servicio: {{4}}",
+      "",
+      "Puedes ver los detalles en la agenda de la plataforma.",
+    ),
+  },
 };
 
 export const TEMPLATE_KINDS = Object.keys(TEMPLATES) as TemplateKind[];
@@ -117,6 +137,13 @@ export function templateComponents(kind: TemplateKind, { samplePdfUrl }: { sampl
       { type: "footer", text: "Responde a este chat si tienes alguna pregunta." },
     ];
   }
+  if (kind === "doctor_alert") {
+    return [
+      { type: "body", text: TEMPLATES[kind].body, example: { body_text: [DOCTOR_EXAMPLE] } },
+      // With Coexistence a doctor's reply lands in the front desk's WhatsApp Business app.
+      { type: "footer", text: "Si respondes a este chat, le llega a recepción." },
+    ];
+  }
   return [
     { type: "body", text: TEMPLATES[kind].body, example: { body_text: [EXAMPLE] } },
     { type: "footer", text: "Responde a este chat si tienes alguna pregunta." },
@@ -134,6 +161,27 @@ export function labResultsParams({ firstName, sampledDay, signer }: { firstName:
     clean(firstName.split(" ")[0] || firstName, 40) || "paciente",
     clean(formatDay(sampledDay, "long")),
     clean(`${article} ${name}`, 80),
+  ];
+}
+
+const DOCTOR_EXAMPLE = ["Ana Pérez", "martes, 18 de noviembre", "8:30 a. m.", "Consulta de medicina general"];
+
+/** What the alert to a doctor needs to know about the visit. */
+export type DoctorAlertFacts = {
+  firstName: string;
+  lastName: string;
+  startsAt: string;
+  /** The doctor's services on the visit, "Consulta general · Ecosonograma". */
+  services: string | null;
+};
+
+/** {{1}} the patient's name, {{2}} day, {{3}} time, {{4}} the doctor's services on the visit. */
+export function doctorAlertParams(visit: DoctorAlertFacts) {
+  return [
+    clean(`${visit.firstName} ${visit.lastName}`, 60) || "Paciente",
+    clean(formatDay(localDay(visit.startsAt), "long")),
+    clean(formatTime(visit.startsAt)),
+    clean(visit.services || "Consulta", 80),
   ];
 }
 

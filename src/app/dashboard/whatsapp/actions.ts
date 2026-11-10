@@ -5,9 +5,12 @@ import { refresh } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { isBookingPhone, normalizePhone } from "@/lib/booking/phone";
+import { isUuid } from "@/lib/crm/clinic";
 import { dbErrorMessage, type FormState } from "@/lib/crm/form-state";
 import { getViewer } from "@/lib/crm/viewer";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PHONE_DISPLAY } from "@/lib/site-config";
 import { createClient } from "@/lib/supabase/server";
 import { CONNECT_COOKIE, zernioConfig } from "@/lib/whatsapp/config";
 import { QUALITY_LABEL, templateStatus, tierLabel } from "@/lib/whatsapp/labels";
@@ -92,11 +95,51 @@ export async function saveWhatsAppSwitches(_prev: FormState, formData: FormData)
   const supabase = await createClient();
   const { error } = await supabase
     .from("whatsapp_settings")
-    .update({ send_confirmations: formData.get("send_confirmations") === "on", send_reminders: formData.get("send_reminders") === "on" })
+    .update({
+      send_confirmations: formData.get("send_confirmations") === "on",
+      send_reminders: formData.get("send_reminders") === "on",
+      send_doctor_alerts: formData.get("send_doctor_alerts") === "on",
+    })
     .eq("id", true);
   if (error) return { error: dbErrorMessage(error) };
   refresh();
   return { message: "Guardado." };
+}
+
+/**
+ * Sets, changes or removes ("remove" = "1") the number a doctor gets the
+ * new-visit alerts on. The table's RLS lets only administrators write it,
+ * and the database checks the member is a doctor or the medical director.
+ */
+export async function saveDoctorWhatsApp(_prev: FormState, formData: FormData): Promise<FormState> {
+  const viewer = await getViewer();
+  if (!viewer.permissions.management) return { error: NO_ACCESS };
+  const professional = formData.get("professional");
+  if (!isUuid(professional)) return { error: "Médico no válido." };
+  const supabase = await createClient();
+
+  if (formData.get("remove") === "1") {
+    const { error } = await supabase.from("whatsapp_doctor_phones").delete().eq("professional_id", professional);
+    if (error) return { error: dbErrorMessage(error, "No se pudo quitar el número.") };
+    refresh();
+    return { message: "Número quitado: ya no recibe avisos." };
+  }
+
+  const phone = normalizePhone(String(formData.get("phone") ?? ""));
+  if (!isBookingPhone(phone)) {
+    return { error: "Escribe un celular: 04xx-xxxxxxx, o con el código del país si es del exterior (+…)." };
+  }
+  // WhatsApp cannot send a message from a number to itself.
+  const { data: settings } = await supabase.from("whatsapp_settings").select("phone").maybeSingle();
+  if (phone === normalizePhone(PHONE_DISPLAY) || phone === normalizePhone(settings?.phone)) {
+    return { error: "Ese es el número del centro. Escribe el celular del médico." };
+  }
+  const { error } = await supabase
+    .from("whatsapp_doctor_phones")
+    .upsert({ professional_id: professional, phone }, { onConflict: "professional_id" });
+  if (error) return { error: dbErrorMessage(error, "No se pudo guardar el número. Revisa que sea un celular con WhatsApp.") };
+  refresh();
+  return { message: "Número guardado." };
 }
 
 /** Submits the templates Meta has not seen yet to its review, then refreshes every status. */

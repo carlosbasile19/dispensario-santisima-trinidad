@@ -160,7 +160,7 @@ Each professional (a member with the `doctor` or `director` role) can have one b
 
 ## WhatsApp
 
-Confirmations and reminders go out from the clinic's own number through [Zernio](https://zernio.com), a Meta Tech Provider, with **Coexistence**: the number stays in the WhatsApp Business app on the front desk's phone and works on the WhatsApp Cloud API at the same time. Messages are mirrored both ways, so the front desk sees every automatic message, and the patient's answer, in the app.
+Confirmations and reminders to patients, and alerts of new visits to doctors, go out from the clinic's own number through [Zernio](https://zernio.com), a Meta Tech Provider, with **Coexistence**: the number stays in the WhatsApp Business app on the front desk's phone and works on the WhatsApp Cloud API at the same time. Messages are mirrored both ways, so the front desk sees every automatic message, and the patient's answer, in the app.
 
 - **What goes out.** A confirmation when a visit is booked (online or in Nueva cita) and a reminder the afternoon before (`/api/cron/whatsapp`, Vercel Cron at 20:30 UTC, about 16:30 in Caracas). Both are UTILITY templates (`lib/whatsapp/templates.ts`) with three buttons:
   - **Confirmar asistencia** makes the visit `confirmed`.
@@ -168,6 +168,12 @@ Confirmations and reminders go out from the clinic's own number through [Zernio]
   - **Reprogramar** changes nothing; the front desk follows up in the chat.
 
   `whatsapp_apply_reply` applies the answer. When two visits are pending, a tap could be about either, so it changes nothing. A short text answers each tap. Messages never carry the cédula (Meta's policy forbids ID numbers) or the service.
+- **Alerts to doctors.** As soon as a visit is booked with a doctor or the medical director (online, in Nueva cita, or when they are added to a visit or given one of its services), the clinic's number sends them the `nueva_cita_medico` template: the patient's name, the day, the time and their services on the visit, never the cédula, the phone or the patient's notes. Only doctors with a number in Administración › WhatsApp › Avisos a médicos get them (`whatsapp_doctor_phones`, administrators only, added with the doctor's consent), one per doctor and visit.
+  - A trigger on `appointment_items` (`whatsapp_queue_doctor_alert`) queues the row in `whatsapp_doctor_alerts`. It never makes a booking fail.
+  - Every booking path then calls `deliverDoctorAlerts`, after the response; the daily job sends whatever is left over.
+  - Statuses arrive through the same webhook (`whatsapp_record_status` updates whichever table has the wamid). The visit's WhatsApp card shows them, without the number.
+  - With Coexistence, each alert also appears in the front desk's app, in the chat with that doctor, and a doctor's reply lands there.
+  - The "Aviso al médico al agendar" switch pauses them all.
 - **Who gets them.** Patients with `whatsapp_consent = true` and a mobile number (`whatsapp_reachable`). The online booking form asks with a checkbox when the number is connected, and the front desk records the answer in the patient form. There is one message per visit and time (`whatsapp_messages`, unique), and no message text is stored. The clinic's Zernio profile has zero content retention too.
 - **Pieces.**
   - `lib/whatsapp/zernio.ts`: the API calls.
@@ -175,7 +181,7 @@ Confirmations and reminders go out from the clinic's own number through [Zernio]
   - `webhook.ts` behind `/api/whatsapp/webhook`: signed events, deduplicated in `whatsapp_webhook_events`. They carry delivery statuses, button answers, disconnections and template reviews.
   - `/api/whatsapp/callback`: the end of the connect flow. It checks a state cookie, the administrator and the account.
   - **Administración › WhatsApp**: connect, templates, switches and the latest messages.
-  - The WhatsApp card on each visit, which can also send or retry the confirmation.
+  - The WhatsApp card on each visit, which can also send or retry the confirmation, and lists the doctors' alerts.
 - **Setting up Zernio**, once, from a trusted machine, with a full-access key of your Zernio team owner:
 
   ```bash
@@ -186,14 +192,14 @@ Confirmations and reminders go out from the clinic's own number through [Zernio]
 - **Connecting the number.**
   1. Open Administración › WhatsApp › Conectar WhatsApp, with the clinic's phone at hand. Zernio's page (in Spanish) opens Meta's Embedded Signup: log in with Facebook, type the number, then scan a QR code from WhatsApp Business (Settings › Linked devices).
   2. Turn off two-step verification in the app first; turn it back on afterwards.
-  3. Press "Enviar a Meta para revisión" to submit the two templates. Nothing is sent until Meta approves them, which takes minutes to 24 hours. The `whatsapp.template.status_updated` webhook and the daily job keep the status current.
+  3. Press "Enviar a Meta para revisión" to submit the templates; it sends only those Meta has not seen yet, so press it again after a new template is added. Nothing is sent until Meta approves a template, which takes minutes to 24 hours. The `whatsapp.template.status_updated` webhook and the daily job keep the status current.
 - **Coexistence limits.**
   - Broadcast lists are disabled in the app, and disappearing and view-once messages are off.
   - The profile photo is managed in the app.
   - WhatsApp for Windows cannot be linked; WhatsApp Web can.
   - The phone must open the app at least every ~14 days, or Meta disconnects the number. `account.disconnected` shows that on the WhatsApp page, and nothing is sent until an administrator reconnects.
   - To leave Coexistence, use the phone: Settings › Account › Business Platform › Disconnect.
-- **Costs.** Meta bills each delivered template to the clinic's WhatsApp Business Account: about US$0.0113 per utility message for Venezuela, charged in dollars to a card in Meta Business Suite. Answers to a patient's tap are service messages: 1,000 a month free per number. Zernio adds no markup to Meta's fees.
+- **Costs.** Meta bills each delivered template to the clinic's WhatsApp Business Account, the doctors' alerts included: about US$0.0113 per utility message for Venezuela, charged in dollars to a card in Meta Business Suite. Answers to a patient's tap are service messages: 1,000 a month free per number. Zernio adds no markup to Meta's fees.
 
 ## Database rules
 

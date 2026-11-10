@@ -24,6 +24,9 @@ export function normalizePhone(raw: string | null | undefined): string | null {
 export const isBookingPhone = (e164: string | null): e164 is string =>
   e164 !== null && (e164.startsWith("+584") || !e164.startsWith("+58"));
 
+/** A stored number the way the centre writes it: "+584121234567" → "0412-1234567"; one from abroad as stored. */
+export const formatPhone = (e164: string) => (/^\+58\d{10}$/.test(e164) ? `0${e164.slice(3, 6)}-${e164.slice(6)}` : e164);
+
 /**
  * Light formatting while a Venezuelan number is typed: "04121234567" →
  * "0412-1234567", like the centre writes its own number. Anything else (a
