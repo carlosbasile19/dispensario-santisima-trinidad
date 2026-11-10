@@ -376,6 +376,9 @@ export type Database = {
           sex: string | null
           source: string
           updated_at: string
+          whatsapp_consent: boolean | null
+          whatsapp_consent_at: string | null
+          whatsapp_user_id: string | null
         }
         Insert: {
           address?: string | null
@@ -394,6 +397,9 @@ export type Database = {
           sex?: string | null
           source?: string
           updated_at?: string
+          whatsapp_consent?: boolean | null
+          whatsapp_consent_at?: string | null
+          whatsapp_user_id?: string | null
         }
         Update: {
           address?: string | null
@@ -412,6 +418,9 @@ export type Database = {
           sex?: string | null
           source?: string
           updated_at?: string
+          whatsapp_consent?: boolean | null
+          whatsapp_consent_at?: string | null
+          whatsapp_user_id?: string | null
         }
         Relationships: [
           {
@@ -570,6 +579,195 @@ export type Database = {
           name?: string
           price_usd?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          appointment_id: string
+          conversation_id: string | null
+          created_at: string
+          delivered_at: string | null
+          error: string | null
+          error_code: string | null
+          failed_at: string | null
+          id: string
+          kind: string
+          patient_id: string
+          read_at: string | null
+          replied_at: string | null
+          reply: string | null
+          reply_effect: string | null
+          sent_at: string | null
+          starts_at: string
+          status: string
+          template_language: string | null
+          template_name: string | null
+          to_phone: string
+          wamid: string | null
+        }
+        Insert: {
+          appointment_id: string
+          conversation_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error?: string | null
+          error_code?: string | null
+          failed_at?: string | null
+          id?: string
+          kind: string
+          patient_id: string
+          read_at?: string | null
+          replied_at?: string | null
+          reply?: string | null
+          reply_effect?: string | null
+          sent_at?: string | null
+          starts_at: string
+          status?: string
+          template_language?: string | null
+          template_name?: string | null
+          to_phone: string
+          wamid?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error?: string | null
+          error_code?: string | null
+          failed_at?: string | null
+          id?: string
+          kind?: string
+          patient_id?: string
+          read_at?: string | null
+          replied_at?: string | null
+          reply?: string | null
+          reply_effect?: string | null
+          sent_at?: string | null
+          starts_at?: string
+          status?: string
+          template_language?: string | null
+          template_name?: string | null
+          to_phone?: string
+          wamid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_balances"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_settings: {
+        Row: {
+          connected: boolean
+          connected_at: string | null
+          connected_by: string | null
+          disconnect_reason: string | null
+          disconnected_at: string | null
+          id: boolean
+          phone: string | null
+          send_confirmations: boolean
+          send_reminders: boolean
+          updated_at: string
+          zernio_account_id: string | null
+        }
+        Insert: {
+          connected?: boolean
+          connected_at?: string | null
+          connected_by?: string | null
+          disconnect_reason?: string | null
+          disconnected_at?: string | null
+          id?: boolean
+          phone?: string | null
+          send_confirmations?: boolean
+          send_reminders?: boolean
+          updated_at?: string
+          zernio_account_id?: string | null
+        }
+        Update: {
+          connected?: boolean
+          connected_at?: string | null
+          connected_by?: string | null
+          disconnect_reason?: string | null
+          disconnected_at?: string | null
+          id?: boolean
+          phone?: string | null
+          send_confirmations?: boolean
+          send_reminders?: boolean
+          updated_at?: string
+          zernio_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_settings_connected_by_fkey"
+            columns: ["connected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_templates: {
+        Row: {
+          language: string
+          meta_template_id: string | null
+          name: string
+          reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          language: string
+          meta_template_id?: string | null
+          name: string
+          reason?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          language?: string
+          meta_template_id?: string | null
+          name?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_webhook_events: {
+        Row: {
+          event: string
+          id: string
+          received_at: string
+        }
+        Insert: {
+          event: string
+          id: string
+          received_at?: string
+        }
+        Update: {
+          event?: string
+          id?: string
+          received_at?: string
         }
         Relationships: []
       }
@@ -764,6 +962,9 @@ export type Database = {
           sex: string | null
           source: string
           updated_at: string
+          whatsapp_consent: boolean | null
+          whatsapp_consent_at: string | null
+          whatsapp_user_id: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -787,6 +988,57 @@ export type Database = {
       void_payment: {
         Args: { payment: string; reason: string }
         Returns: undefined
+      }
+      whatsapp_apply_reply: {
+        Args: { answer: string; message_id: string; user_id?: string }
+        Returns: Json
+      }
+      whatsapp_connected: { Args: never; Returns: boolean }
+      whatsapp_outbox: {
+        Args: { messages: string[] }
+        Returns: {
+          area: Database["public"]["Enums"]["service_area"]
+          consent: boolean
+          first_name: string
+          id: string
+          kind: string
+          professional: string
+          starts_at: string
+          status: string
+          to_phone: string
+          visit_starts_at: string
+          visit_status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
+      whatsapp_queue_confirmation: {
+        Args: { appointment: string }
+        Returns: string
+      }
+      whatsapp_queue_online_booking: {
+        Args: {
+          document_number: string
+          document_type: string
+          local_day: string
+          local_time: string
+          opt_in: boolean
+        }
+        Returns: string
+      }
+      whatsapp_queue_reminders: { Args: { for_day: string }; Returns: string[] }
+      whatsapp_reachable: { Args: { phone: string }; Returns: boolean }
+      whatsapp_record_status: {
+        Args: {
+          code?: string
+          detail?: string
+          new_status: string
+          ref: string
+          status_at: string
+        }
+        Returns: string
+      }
+      whatsapp_reply_target: {
+        Args: { conversation: string; phone: string; quoted?: string }
+        Returns: Json
       }
     }
     Enums: {

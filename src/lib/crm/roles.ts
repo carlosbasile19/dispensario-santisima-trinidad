@@ -122,7 +122,7 @@ export const ROLE_ICON: Record<Role, IconName> = {
 export const roleOptions = () =>
   ROLES.map((role) => ({ value: role, label: ROLE_INFO[role].label, description: ROLE_INFO[role].description, icon: ROLE_ICON[role] }));
 
-export type NavIcon = "home" | "calendar" | "slots" | "patients" | "ledger" | "building" | "team" | "key";
+export type NavIcon = "home" | "calendar" | "slots" | "patients" | "ledger" | "building" | "chat" | "team" | "key";
 export type NavItem = { href: string; label: string; icon: NavIcon };
 export type NavGroup = { title: string; items: NavItem[] };
 
@@ -143,6 +143,7 @@ export function navFor(role: Role): NavGroup[] {
   const adminItems: NavItem[] = [];
   if (p.accounting) adminItems.push({ href: "/dashboard/contabilidad", label: "Contabilidad", icon: "ledger" });
   if (p.management) adminItems.push({ href: "/dashboard/gestion", label: "Gestión", icon: "building" });
+  if (p.management) adminItems.push({ href: "/dashboard/whatsapp", label: "WhatsApp", icon: "chat" });
   if (p.members) adminItems.push({ href: "/dashboard/miembros", label: "Miembros", icon: "team" });
   if (adminItems.length) groups.push({ title: "Administración", items: adminItems });
   groups.push({ title: "Cuenta", items: [{ href: "/dashboard/cuenta", label: "Mi cuenta", icon: "key" }] });

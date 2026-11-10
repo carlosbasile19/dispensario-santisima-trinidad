@@ -2,12 +2,14 @@
 
 import { createHmac } from "node:crypto";
 import { headers } from "next/headers";
+import { after } from "next/server";
 
 import { cleanDocument, isDocumentType, isValidDocument } from "@/lib/booking/document";
 import { isBookingPhone, normalizePhone } from "@/lib/booking/phone";
 import type { BookedVisit, BookingRequest, BookingResult } from "@/lib/booking/types";
 import { isIsoDate, isTime, isUuid } from "@/lib/crm/clinic";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { afterOnlineBooking } from "@/lib/whatsapp/send";
 
 // Books a visit from a public booking page. Patients have no account: the
 // database function book_online (service role only) recognises them by their
@@ -123,6 +125,13 @@ export async function bookOnline(request: BookingRequest): Promise<BookingResult
 
   const answer = data as Record<string, unknown>;
   if (answer.status === "booked") {
+    // When the form offered WhatsApp: record the answer and send the
+    // confirmation after the response, so the patient never waits on it.
+    if (typeof request.whatsapp === "boolean") {
+      const optIn = request.whatsapp;
+      const documentNumber = cleanDocument(documentType, typed);
+      after(() => afterOnlineBooking({ documentType, documentNumber, day, time, optIn }));
+    }
     const visit = parseVisit(answer);
     return visit ? { status: "booked", visit } : { status: "error", message: GENERIC };
   }

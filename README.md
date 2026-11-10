@@ -57,6 +57,8 @@ src/
                               # slugs, "add to my calendar" (.ics / Google Calendar)
   lib/bcv/                    # reads the BCV rate (bcv.org.ve, DolarAPI mirror) and records it
   app/api/cron/bcv/           # the daily job that runs it (Vercel Cron, see vercel.json)
+  lib/whatsapp/               # WhatsApp through Zernio: API, templates, sending, webhook events
+  app/api/whatsapp/           # Zernio's webhook and the end of the connect flow; app/api/cron/whatsapp: reminders
   components/crm/             # platform UI: sidebar, cards, badges, icons, forms, rate form,
                               # select / date-picker / modal (the platform's pickers and dialogs)
 supabase/
@@ -112,6 +114,43 @@ Each professional (a member with the `doctor` or `director` role) can have one b
 - **Abuse limits** (`book_online`): 12 attempts per client in 15 minutes and 40 a day (by a keyed hash of the IP, never the IP itself; `booking_attempts`, kept two days), 20 online bookings per calendar per hour, 3 upcoming online visits per patient, and one booking at a time per calendar (an advisory lock), so two patients cannot take the same slot.
 - Without `SUPABASE_SECRET_KEY` the booking pages show a WhatsApp fallback instead of failing.
 
+## WhatsApp
+
+Confirmations and reminders go out from the clinic's own number through [Zernio](https://zernio.com), a Meta Tech Provider, with **Coexistence**: the number stays in the WhatsApp Business app on the front desk's phone and works on the WhatsApp Cloud API at the same time. Messages are mirrored both ways, so the front desk sees every automatic message, and the patient's answer, in the app.
+
+- **What goes out.** A confirmation when a visit is booked (online or in Nueva cita) and a reminder the afternoon before (`/api/cron/whatsapp`, Vercel Cron at 20:30 UTC, about 16:30 in Caracas). Both are UTILITY templates (`lib/whatsapp/templates.ts`) with three buttons:
+  - **Confirmar asistencia** makes the visit `confirmed`.
+  - **Cancelar cita** makes it `cancelled`, which frees the slot.
+  - **Reprogramar** changes nothing; the front desk follows up in the chat.
+
+  `whatsapp_apply_reply` applies the answer. When two visits are pending, a tap could be about either, so it changes nothing. A short text answers each tap. Messages never carry the cédula (Meta's policy forbids ID numbers) or the service.
+- **Who gets them.** Patients with `whatsapp_consent = true` and a mobile number (`whatsapp_reachable`). The online booking form asks with a checkbox when the number is connected, and the front desk records the answer in the patient form. There is one message per visit and time (`whatsapp_messages`, unique), and no message text is stored. The clinic's Zernio profile has zero content retention too.
+- **Pieces.**
+  - `lib/whatsapp/zernio.ts`: the API calls.
+  - `send.ts`: queue (database functions `whatsapp_queue_*`) and send; each row is claimed before sending.
+  - `webhook.ts` behind `/api/whatsapp/webhook`: signed events, deduplicated in `whatsapp_webhook_events`. They carry delivery statuses, button answers, disconnections and template reviews.
+  - `/api/whatsapp/callback`: the end of the connect flow. It checks a state cookie, the administrator and the account.
+  - **Administración › WhatsApp**: connect, templates, switches and the latest messages.
+  - The WhatsApp card on each visit, which can also send or retry the confirmation.
+- **Setting up Zernio**, once, from a trusted machine, with a full-access key of your Zernio team owner:
+
+  ```bash
+  ZERNIO_ADMIN_KEY=<full-access key> SITE_URL=https://<production-domain> node scripts/zernio-setup.mjs
+  ```
+
+  It creates the clinic's profile in your existing Zernio team with zero content retention. It also creates an API key and a webhook, both limited to that profile, and prints `ZERNIO_API_KEY`, `ZERNIO_PROFILE_ID` and `ZERNIO_WEBHOOK_SECRET` for Vercel. Webhooks reach the production domain only.
+- **Connecting the number.**
+  1. Open Administración › WhatsApp › Conectar WhatsApp, with the clinic's phone at hand. Zernio's page (in Spanish) opens Meta's Embedded Signup: log in with Facebook, type the number, then scan a QR code from WhatsApp Business (Settings › Linked devices).
+  2. Turn off two-step verification in the app first; turn it back on afterwards.
+  3. Press "Enviar a Meta para revisión" to submit the two templates. Nothing is sent until Meta approves them, which takes minutes to 24 hours. The `whatsapp.template.status_updated` webhook and the daily job keep the status current.
+- **Coexistence limits.**
+  - Broadcast lists are disabled in the app, and disappearing and view-once messages are off.
+  - The profile photo is managed in the app.
+  - WhatsApp for Windows cannot be linked; WhatsApp Web can.
+  - The phone must open the app at least every ~14 days, or Meta disconnects the number. `account.disconnected` shows that on the WhatsApp page, and nothing is sent until an administrator reconnects.
+  - To leave Coexistence, use the phone: Settings › Account › Business Platform › Disconnect.
+- **Costs.** Meta bills each delivered template to the clinic's WhatsApp Business Account: about US$0.0113 per utility message for Venezuela, charged in dollars to a card in Meta Business Suite. Answers to a patient's tap are service messages: 1,000 a month free per number. Zernio adds no markup to Meta's fees.
+
 ## Database rules
 
 - Every schema change is a migration in `supabase/migrations/`. Do not edit the schema from the dashboard.
@@ -125,7 +164,7 @@ Each professional (a member with the `doctor` or `director` role) can have one b
 | | Supabase | Vercel |
 | --- | --- | --- |
 | Project | `DST` (`xnbinvflvurdpvbctxfh`, eu-central-1) | `dispensario-santisima-trinidad` |
-| Env vars | — | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `SUPABASE_SECRET_KEY` and `CRON_SECRET` (server only) |
+| Env vars | — | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`; server only: `SUPABASE_SECRET_KEY`, `CRON_SECRET`, `ZERNIO_API_KEY`, `ZERNIO_PROFILE_ID`, `ZERNIO_WEBHOOK_SECRET` |
 
 Pushes to `main` deploy to production. Other branches and PRs get preview deployments.
 

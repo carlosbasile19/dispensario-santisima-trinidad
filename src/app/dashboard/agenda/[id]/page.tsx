@@ -47,6 +47,7 @@ import { createClient } from "@/lib/supabase/server";
 import { VoidPayment } from "../../contabilidad/void-payment";
 import { rescheduleAppointment, saveAppointmentNotes, setAppointmentStatus } from "../actions";
 import { AddItemModal, ItemControls, PaymentForm } from "./controls";
+import { WhatsAppCard } from "./whatsapp-card";
 
 export const metadata: Metadata = { title: "Cita" };
 
@@ -371,6 +372,27 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
                 ))}
               </dl>
             </Card>
+          )}
+
+          {patient && (
+            <Suspense
+              fallback={
+                <Card>
+                  <CardHeader title="WhatsApp" />
+                  <div className="px-5 py-4">
+                    <Skeleton className="w-40" />
+                  </div>
+                </Card>
+              }
+            >
+              <WhatsAppCard
+                appointmentId={id}
+                patientId={patient.id}
+                startsAt={appointment.starts_at}
+                status={appointment.status}
+                canSend={manage}
+              />
+            </Suspense>
           )}
 
           {money && (

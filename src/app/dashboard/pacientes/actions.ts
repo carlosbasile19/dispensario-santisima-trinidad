@@ -50,6 +50,12 @@ export async function savePatient(_prev: FormState, formData: FormData): Promise
   const email = text(formData, "email", 120);
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Revisa el correo." };
 
+  // Only when the form carries the field, so another form never clears the answer.
+  const consent = formData.get("whatsapp_consent");
+  const whatsapp: { whatsapp_consent?: boolean | null } = formData.has("whatsapp_consent")
+    ? { whatsapp_consent: consent === "yes" ? true : consent === "no" ? false : null }
+    : {};
+
   const patient = {
     first_name: firstName,
     last_name: lastName,
@@ -60,6 +66,7 @@ export async function savePatient(_prev: FormState, formData: FormData): Promise
     email: email?.toLowerCase() ?? null,
     address: text(formData, "address", 300),
     notes: String(formData.get("notes") ?? "").trim().slice(0, 1000) || null,
+    ...whatsapp,
   };
 
   const supabase = await createClient();
