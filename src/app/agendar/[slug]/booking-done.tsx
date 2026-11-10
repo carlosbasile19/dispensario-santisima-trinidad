@@ -62,7 +62,7 @@ export function BookingDone({ visit, onBookAnother }: { visit: BookedVisit; onBo
         </p>
         {visit.registered && (
           <p className="mt-2 text-[14px] text-muted">
-            Creamos tu ficha con los datos que nos diste. En recepción te pediremos tu cédula.
+            Registramos al paciente con los datos que nos diste. Trae la cédula el día de la cita.
           </p>
         )}
       </div>

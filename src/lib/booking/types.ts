@@ -43,11 +43,15 @@ export type BookingRequest = {
   serviceId: string;
   day: string;
   time: string;
-  phone: string;
+  /** The patient's identity document: V or E (cédula) or P (passport). */
+  documentType: string;
+  documentNumber: string;
   notes?: string;
+  /** Only for a patient the centre does not know yet. */
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
 };
 
 export type BookedVisit = {
@@ -61,11 +65,11 @@ export type BookedVisit = {
 };
 
 /**
- * What the booking action answers. needs_details / needs_name ask for more
- * fields; slot_taken means the page must reload the free slots.
+ * What the booking action answers. needs_details asks for the new patient's
+ * name, last name, email and mobile; slot_taken means the page must reload
+ * the free slots.
  */
 export type BookingResult =
   | { status: "booked"; visit: BookedVisit }
   | { status: "needs_details"; message: string }
-  | { status: "needs_name"; message: string }
-  | { status: "error"; message: string; reason?: "slot_taken" | "phone" | "email" | "closed" };
+  | { status: "error"; message: string; reason?: "slot_taken" | "document" | "phone" | "email" | "closed" };

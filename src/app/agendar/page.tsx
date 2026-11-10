@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 const PROMISES: { icon: IconName; title: string; text: string }[] = [
   { icon: "calendar-check", title: "En pocos pasos", text: "Eliges el día y la hora que te quedan mejor." },
-  { icon: "phone", title: "Con tu número", text: "Sin crear cuentas ni contraseñas." },
+  { icon: "id-card", title: "Con tu cédula", text: "Sin crear cuentas ni contraseñas." },
   { icon: "lock", title: "Datos protegidos", text: "Tu ficha nunca se muestra en la página." },
 ];
 
