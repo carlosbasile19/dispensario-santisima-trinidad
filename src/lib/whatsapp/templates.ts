@@ -1,6 +1,6 @@
 // The WhatsApp templates the clinic sends, as they are submitted to Meta for
-// review (Zernio's POST /v1/whatsapp/templates takes Meta's component shapes),
-// and the values each message fills in.
+// review (Zernio's POST /v1/whatsapp/templates takes Meta's component shapes,
+// with lowercase types), and the values each message fills in.
 //
 // Both are UTILITY templates: about a visit the patient booked, with no
 // promotion, which is what Meta's utility category allows. They never carry
@@ -79,12 +79,16 @@ export const TEMPLATE_KINDS = Object.keys(TEMPLATES) as MessageKind[];
 /** Undelivered after 12 hours (the phone was off), a message is dropped instead of arriving late. */
 export const TEMPLATE_TTL_SECONDS = 12 * 60 * 60;
 
-/** The components Meta reviews for a template. */
+/**
+ * The components Meta reviews for a template. Zernio validates them before
+ * passing them on, and its schema wants the types in lowercase ("body",
+ * "quick_reply"), unlike Meta's own API and Zernio's template listing.
+ */
 export function templateComponents(kind: MessageKind) {
   return [
-    { type: "BODY", text: TEMPLATES[kind].body, example: { body_text: [EXAMPLE] } },
-    { type: "FOOTER", text: "Responde a este chat si tienes alguna pregunta." },
-    { type: "BUTTONS", buttons: REPLY_BUTTONS.map((button) => ({ type: "QUICK_REPLY", text: button.text })) },
+    { type: "body", text: TEMPLATES[kind].body, example: { body_text: [EXAMPLE] } },
+    { type: "footer", text: "Responde a este chat si tienes alguna pregunta." },
+    { type: "buttons", buttons: REPLY_BUTTONS.map((button) => ({ type: "quick_reply", text: button.text })) },
   ];
 }
 
