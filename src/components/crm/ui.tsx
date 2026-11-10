@@ -29,12 +29,15 @@ export function PageHeader({
     <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div className="min-w-0">
         {eyebrow && <p className="mb-2 text-[12px] tracking-[0.14em] text-teal uppercase">{eyebrow}</p>}
-        <h1 className="font-serif text-[clamp(30px,3.2vw,40px)] leading-[1.08] tracking-[-0.01em] text-balance">
+        <h1 className="font-serif text-[clamp(28px,3.2vw,40px)] leading-[1.08] tracking-[-0.01em] text-balance">
           {title}
         </h1>
         {description && <p className="mt-2 max-w-[62ch] text-[15px] text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {/* On a phone the action links share the full width, so each is an easy target. */}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:[&>a]:flex-1 max-sm:[&>a]:justify-center">{actions}</div>
+      )}
     </header>
   );
 }
@@ -45,7 +48,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 
 export function CardHeader({ title, hint, action }: { title: ReactNode; hint?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-line px-4 py-4 sm:px-5">
       <div className="min-w-0">
         <h2 className="text-[15px] font-semibold">{title}</h2>
         {hint && <p className="mt-0.5 text-[13px] text-muted">{hint}</p>}
@@ -65,18 +68,20 @@ export type Stat = {
 };
 
 // Columns for each number of figures, so the row is always full.
+// On a phone the figures go two to a row; an odd last one takes the whole row.
+const ODD_LAST = "max-sm:[&>section:last-of-type]:col-span-2";
 const STAT_COLUMNS: Record<number, string> = {
-  2: "sm:grid-cols-2",
-  3: "sm:grid-cols-3",
-  4: "sm:grid-cols-2 xl:grid-cols-4",
-  5: "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
+  2: "grid-cols-2",
+  3: `grid-cols-2 sm:grid-cols-3 ${ODD_LAST}`,
+  4: "grid-cols-2 xl:grid-cols-4",
+  5: `grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 ${ODD_LAST}`,
 };
 
 function StatCard({ label, value, hint, alert }: { label: string; value: ReactNode; hint: ReactNode; alert?: boolean }) {
   return (
-    <Card className="px-5 py-4">
+    <Card className="min-w-0 px-4 py-3.5 sm:px-5 sm:py-4">
       <p className="text-[12px] tracking-[0.04em] text-stone uppercase">{label}</p>
-      <p className={`mt-1.5 text-xl ${alert ? "font-medium text-[#b03a36]" : "font-mono"}`}>{value}</p>
+      <p className={`mt-1.5 text-lg sm:text-xl ${alert ? "font-medium text-[#b03a36]" : "font-mono"}`}>{value}</p>
       <p className="mt-1 text-[13px] text-muted">{hint}</p>
     </Card>
   );
@@ -85,7 +90,7 @@ function StatCard({ label, value, hint, alert }: { label: string; value: ReactNo
 /** A page's key figures as a row of cards that always spans the page. */
 export function StatGrid({ stats }: { stats: Stat[] }) {
   return (
-    <div className={`grid gap-4 ${STAT_COLUMNS[stats.length] ?? STAT_COLUMNS[4]}`}>
+    <div className={`grid gap-3 sm:gap-4 ${STAT_COLUMNS[stats.length] ?? STAT_COLUMNS[4]}`}>
       {stats.map((stat) => (
         <StatCard key={stat.label} {...stat} />
       ))}
@@ -96,7 +101,7 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
 /** A StatGrid before its figures arrive: the same labelled cards, with the figures loading. */
 export function StatGridSkeleton({ labels }: { labels: readonly string[] }) {
   return (
-    <div aria-busy="true" className={`grid gap-4 ${STAT_COLUMNS[labels.length] ?? STAT_COLUMNS[4]}`}>
+    <div aria-busy="true" className={`grid gap-3 sm:gap-4 ${STAT_COLUMNS[labels.length] ?? STAT_COLUMNS[4]}`}>
       <Busy />
       {labels.map((label) => (
         <StatCard key={label} label={label} value={<Skeleton className="w-20" />} hint={<Skeleton className="w-32" />} />
@@ -271,12 +276,12 @@ export function DayBarSkeleton() {
   return (
     <div aria-busy="true" className="flex flex-wrap items-center gap-2">
       <Busy />
-      <span className="size-10 rounded-lg border border-outline bg-white" />
-      <span className="size-10 rounded-lg border border-outline bg-white" />
-      <h2 className="mr-auto px-2 text-lg font-medium">
+      <span className="size-10 rounded-lg border border-outline bg-white max-lg:hidden" />
+      <span className="size-10 rounded-lg border border-outline bg-white max-lg:hidden" />
+      <h2 className="mr-auto text-lg font-medium lg:px-2">
         <Skeleton className="w-52" />
       </h2>
-      <span className="h-10 w-[200px] rounded-lg border border-outline bg-white" />
+      <span className="h-10 w-full rounded-lg border border-outline bg-white lg:w-[200px]" />
     </div>
   );
 }

@@ -283,7 +283,53 @@ async function DayPayments({ searchParams }: { searchParams: SearchParams }) {
         hint={`${valid.length} ${valid.length === 1 ? "cobro" : "cobros"}${payments.length > valid.length ? ` · ${payments.length - valid.length} anulado(s)` : ""}`}
       />
       {payments.length ? (
-        <table className="w-full min-w-[820px] border-collapse">
+        <>
+        {/* Phones and upright tablets: one row per payment, the amount on the right. */}
+        <ul className="divide-y divide-line lg:hidden">
+          {payments.map((p) => {
+            const voided = Boolean(p.voided_at);
+            const usd = p.currency === "USD";
+            const strike = voided ? "text-stone line-through" : "";
+            const patient = p.appointment?.patient ? patientName(p.appointment.patient) : "Cita";
+            return (
+              <li key={p.id} className="flex items-start justify-between gap-3 px-4 py-3.5 sm:px-5">
+                <div className="min-w-0 leading-tight">
+                  {p.appointment ? (
+                    <Link href={`/dashboard/agenda/${p.appointment.id}`} className={`block truncate font-medium ${strike}`}>
+                      {patient}
+                    </Link>
+                  ) : (
+                    <p className="font-medium">—</p>
+                  )}
+                  <p className={`mt-1 flex items-center gap-1.5 text-[13px] text-ink ${strike}`}>
+                    <Icon name={PAYMENT_METHODS[p.method].icon} className="size-3.5 text-teal" />
+                    {PAYMENT_METHODS[p.method].label}
+                  </p>
+                  <p className="mt-1 text-[12px] text-muted">
+                    {formatTime(p.created_at)}
+                    {p.cashea_order && ` · ${PAYMENT_METHODS[p.method].financed ? "financiado" : "inicial"} · orden ${p.cashea_order}`}
+                    {p.reference && ` · ref. ${p.reference}`}
+                    {` · recibió ${p.receiver?.full_name?.trim() || p.receiver?.email || "—"}`}
+                  </p>
+                  {voided && <p className="mt-1 text-[12px] text-[#b03a36]">Anulado: {p.void_reason}</p>}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <p className={`font-mono text-sm whitespace-nowrap ${strike}`}>{usd ? formatUsd(p.amount_usd) : formatBs(p.amount_bs)}</p>
+                  <p className={`font-mono text-[12px] whitespace-nowrap text-muted ${strike}`}>{usd ? formatBs(p.amount_bs) : formatUsd(p.amount_usd)}</p>
+                  {!voided && (
+                    <VoidPayment
+                      paymentId={p.id}
+                      summary={`${PAYMENT_METHODS[p.method].label} · ${usd ? formatUsd(p.amount_usd) : formatBs(p.amount_bs)}${
+                        p.appointment?.patient ? ` · ${patient}` : ""
+                      }`}
+                    />
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <table className="hidden w-full min-w-[820px] border-collapse lg:table">
           <thead>
             <tr className="border-b border-line">
               <th className={th}>Hora</th>
@@ -351,6 +397,7 @@ async function DayPayments({ searchParams }: { searchParams: SearchParams }) {
             })}
           </tbody>
         </table>
+        </>
       ) : (
         <EmptyState icon="ledger" title="No hay cobros este día">
           Los cobros se registran en cada cita de la agenda.
@@ -400,7 +447,27 @@ async function Receivables() {
         hint={due.length ? `${due.length} ${due.length === 1 ? "cita" : "citas"} hasta hoy · ${formatUsd(totalDue)}` : "Citas hasta hoy con saldo pendiente"}
       />
       {due.length ? (
-        <table className="w-full min-w-[620px] border-collapse">
+        <>
+        {/* Phones: one row per visit, what is still owed on the right. */}
+        <ul className="divide-y divide-line sm:hidden">
+          {due.map((d) => (
+            <li key={d.appointment_id}>
+              <Link href={`/dashboard/agenda/${d.appointment_id}`} className="flex items-center justify-between gap-3 px-4 py-3.5 active:bg-cream">
+                <span className="min-w-0 leading-tight">
+                  <span className="block truncate font-medium">{(d.patient_id && names.get(d.patient_id)) || "—"}</span>
+                  <span className="mt-1 block text-[13px] text-muted">
+                    {d.starts_on ? formatDay(d.starts_on, "short") : "—"} · pagó {formatUsd(d.paid_usd ?? 0)} de {formatUsd(d.total_usd ?? 0)}
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="font-mono text-sm font-medium">{formatUsd(d.balance_usd ?? 0)}</span>
+                  <Icon name="chevron-right" className="size-4 text-stone" />
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <table className="hidden w-full min-w-[620px] border-collapse sm:table">
           <thead>
             <tr className="border-b border-line">
               <th className={th}>Cita</th>
@@ -426,6 +493,7 @@ async function Receivables() {
             ))}
           </tbody>
         </table>
+        </>
       ) : (
         <EmptyState icon="check" title="Nada pendiente">
           Todas las citas hasta hoy están pagadas.

@@ -257,6 +257,26 @@ html:has(dialog.modal[open]) {
   overflow: hidden;
 }
 
+/* ------------------------------------------------------------------
+   The platform under a finger (.platform is the shell in
+   app/dashboard/layout.tsx). Controls are sized for a mouse; on a touch
+   screen they grow to the 44px a fingertip needs.
+   ------------------------------------------------------------------ */
+.platform :is(a, button, summary, label) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* no double-tap zoom, so taps answer at once */
+}
+@media (pointer: coarse) {
+  /* iOS zooms the page into any field whose text is smaller than 16px. */
+  .platform :is(input, select, textarea) {
+    font-size: 16px;
+  }
+  .platform :is(a, button, input).h-9,
+  .platform :is(a, button, input).h-10 {
+    min-height: 44px;
+  }
+}
+
 /* Money inputs: no spinner arrows (amounts are typed, never stepped). */
 input.no-spin::-webkit-inner-spin-button,
 input.no-spin::-webkit-outer-spin-button {

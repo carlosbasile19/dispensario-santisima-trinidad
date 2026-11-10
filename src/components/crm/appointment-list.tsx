@@ -56,13 +56,14 @@ export function AppointmentList({
           <li key={a.id}>
             <Link
               href={`/dashboard/agenda/${a.id}`}
-              className={`grid gap-x-5 gap-y-2 px-5 py-4 transition-colors hover:bg-cream sm:grid-cols-[112px_1fr_auto] ${dim ? "opacity-60" : ""}`}
+              className={`grid grid-cols-[5.25rem_minmax(0,1fr)] gap-x-3 gap-y-2.5 px-4 py-4 transition-colors hover:bg-cream active:bg-cream sm:grid-cols-[112px_1fr_auto] sm:gap-x-5 sm:gap-y-2 sm:px-5 ${dim ? "opacity-60" : ""}`}
             >
               <div className="leading-tight">
                 {showDate && <p className="mb-1 text-[13px] font-medium">{formatDay(localDay(a.starts_at), "short")}</p>}
                 <p className="text-[15px] font-medium whitespace-nowrap">{formatTime(a.starts_at)}</p>
                 <p className="mt-0.5 text-[12px] whitespace-nowrap text-stone">
-                  hasta {endTime(a.starts_at, a.duration_minutes)}
+                  <span className="max-sm:hidden">hasta </span>
+                  {endTime(a.starts_at, a.duration_minutes)}
                 </p>
               </div>
 
@@ -94,7 +95,7 @@ export function AppointmentList({
                 </ul>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+              <div className="col-start-2 flex flex-wrap items-center gap-2 sm:col-start-auto sm:flex-col sm:items-end">
                 <span className="flex items-center gap-2">
                   {a.source === "online" && (
                     <span title="Agendada en línea por el paciente" className="inline-flex items-center gap-1 text-[12px] text-teal">
