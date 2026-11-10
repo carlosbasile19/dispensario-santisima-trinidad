@@ -40,7 +40,7 @@ src/
     (auth)/login/             # email + password sign-in / sign-up (Server Actions)
     auth/confirm/route.ts     # email-link + OAuth callback (PKCE code or token_hash)
     auth/error/               # invalid/expired link page
-    dashboard/                # admin platform: Inicio, Agenda, Calendarios, Pacientes,
+    dashboard/                # admin platform: Inicio, Agenda, Calendarios, Pacientes, Laboratorio,
                               # Contabilidad, Gestión, Miembros, Mi cuenta
     agendar/                  # public booking pages: /agendar (all calendars), /agendar/<slug>
     acceso-pendiente/         # signed-in account with no role yet
@@ -57,6 +57,10 @@ src/
                               # slugs, "add to my calendar" (.ics / Google Calendar)
   lib/bcv/                    # reads the BCV rate (bcv.org.ve, DolarAPI mirror) and records it
   app/api/cron/bcv/           # the daily job that runs it (Vercel Cron, see vercel.json)
+  lib/lab/                    # Laboratorio: the test catalog, reference intervals and flags, formulas,
+                              # report checks, the branded PDF (pdf/) and sending it by WhatsApp
+  components/lab/             # the report builder, the printed boleta, the delivery actions
+  app/imprimir/               # the printable boleta, outside the platform's frame
   lib/whatsapp/               # WhatsApp through Zernio: API, templates, sending, webhook events
   app/api/whatsapp/           # Zernio's webhook and the end of the connect flow; app/api/cron/whatsapp: reminders
   components/crm/             # platform UI: sidebar, cards, badges, icons, forms, rate form,
@@ -113,6 +117,46 @@ Each professional (a member with the `doctor` or `director` role) can have one b
 - **Privacy.** Patients have no account and never reach the database directly: the pages and the booking action call `booking_calendar`, `booking_directory` and `book_online` with the service role (`SUPABASE_SECRET_KEY`), and those functions are not executable by `anon` or members. They return public information and statuses only, never anything about a patient, and an unverified visitor can only add a visit to a record, never read or change it. Documents follow the patients form's rules (a cédula has 5 to 10 digits, a passport 4 to 15 letters and digits; `src/lib/booking/document.ts` mirrors them), and a new patient's mobile is checked and kept in international form too (`patients.phone_e164`, from `normalize_phone()`).
 - **Abuse limits** (`book_online`): 12 attempts per client in 15 minutes and 40 a day (by a keyed hash of the IP, never the IP itself; `booking_attempts`, kept two days), 20 online bookings per calendar per hour, 3 upcoming online visits per patient, and one booking at a time per calendar (an advisory lock), so two patients cannot take the same slot.
 - Without `SUPABASE_SECRET_KEY` the booking pages show a WhatsApp fallback instead of failing.
+
+## Laboratorio
+
+**Laboratorio** (`/dashboard/laboratorio`) is where the lab's result reports are built and handed out. It replaces the clinic's Excel boletas: the hematología, química and "formato corto" workbooks, positive/negative and with values.
+
+- **Who.**
+  - Doctors and administrators build, validate and correct reports (`labReports` in `roles.ts`, `can_build_lab_reports()` in the database). A doctor reports only on their own patients, as everywhere else.
+  - Everyone who sees the patient can open a validated report, print it and send it.
+  - To let the medical director build reports too, add `director` to both.
+- **Building a report.**
+  1. Nuevo informe: find the patient, or start from Pacientes or from a visit with a bioanálisis service ("Cargar resultados"). Then link the visit of the sample, if there is one.
+  2. Add exams. Profiles mirror the clinic's sheets: Hematología completa, Perfil de rutina, Orina completa, Examen de heces, VDRL/HIV/PCR/R.A., Coagulación and the rest. Single tests come from a searchable catalog of about 200, and a test can also be typed by hand.
+  3. Type the results. Enter moves to the next one, as in the spreadsheet. Numbers follow the Venezuelan format (`13,5`, `145.000`). Usual answers come as chips or lists (NEGATIVO/POSITIVO, `0 - 2 x CMP`…) and any text is accepted.
+  - **Flags.** Each result is flagged ↑ alto, ↓ bajo or • anormal as it is typed, against the patient's interval by sex and age, as the sheets' `IF(SEXO=…)` did. Any flag or reference can be overridden for one report.
+  - **Formulas.** These are computed as in the sheets: CHCM, LDL (Friedewald), VLDL, bilirrubina indirecta, globulina and A/G, índices de riesgo, PT (actividad, razón, INR), índice de Katz, TIBC and saturación.
+  - **Suggestions.** Hb can be estimated from the Hto with the clinic's formula (Hto × 0,315 + 0,2), but only as a suggestion. VCM and HCM are computed only when the red cell count was measured; they are not derived from an estimate.
+  - **Warnings.** Implausible values ("¿Valor correcto?") and a leukocyte formula that does not add up to 100 % are flagged.
+  - **Autosave.** The draft saves itself a moment after typing stops. If another member saved in between, nothing is overwritten (`updated_at` check).
+  4. **Revisar y validar** shows what will be signed: results, out-of-range values, empty tests (left out of the report) and the signer. `finalize_lab_report` then locks the report and copies in the patient's data and the signer. Each validated version is kept in `lab_report_versions`. **Corregir** reopens it as revision 2 with a reason, and the new documents say they replace the earlier one.
+- **The signer** is one row, `lab_settings`, seeded with Lcdo. Heriberto M. Arteaga R. (C.I. 11.171.135, M.S.A.S. 9577, Colegio 05-451). Administrators change it at the bottom of Laboratorio. A validated report keeps the signer it was signed with.
+- **Catalog.** Tests, units, reference values and usual answers live in `src/lib/lab/catalog.ts`, taken from the clinic's workbooks. A report copies a test's unit and reference rules when the test is added, so editing the catalog never changes an issued report.
+- **Two documents.**
+  - **Boleta impresa** (`/imprimir/laboratorio/<id>`). The clinic's half-sheet slip: header, Nº de examen, the patient strip, one table per exam, the signature and the address box. Two slips go on a Letter or A4 sheet with "doblar aquí" marks, or one per page in Media carta.
+    - The portada (cover, with the Bioanálisis logo) prints on the back of the first sheet. Print double-sided, flipping on the long edge, then fold with the results inside.
+    - Results are paginated so no slip overflows (`paginate` in `components/lab/boleta.tsx`, calibrated in Chrome).
+  - **PDF de marca** (`/dashboard/laboratorio/<id>/pdf`, `?descargar=1` to download). The report patients receive, rendered on request with `@react-pdf/renderer` (`lib/lab/pdf`).
+    - Layout: the navy band with the mark, a patient card, a summary of what is out of range, the sections with range bars, and the validation and signature.
+    - Every page carries the patient, the Nº and "Página x de y".
+    - Drafts carry a BORRADOR watermark.
+    - Fonts and the mark are in `assets/lab-pdf/` (OFL fonts), traced into the functions by `outputFileTracingIncludes` in `next.config.ts`.
+- **Handing it out.** A validated report offers three ways:
+  - Print the boleta.
+  - Download the PDF.
+  - Send it by WhatsApp. The clinic's number sends the template `resultados_laboratorio` with the PDF as its document header.
+    - It needs the number connected, the template approved and the patient's WhatsApp consent.
+    - The PDF is uploaded to the private bucket `lab-reports`, and Meta downloads it from a link signed for six hours. The daily WhatsApp job deletes those copies after two days.
+    - The message carries no result and no ID number: the first name, the day of the sample and who validated it.
+    - Otherwise the member's phone shares the PDF straight to WhatsApp (Web Share), or a computer opens the patient's chat to attach the downloaded file.
+  - Every print, download, share and send is logged in `lab_report_deliveries`, and the list shows what was delivered.
+- **Submitting the template.** The WhatsApp page now lists three templates. "Enviar a Meta para revisión" submits the new one too, with `public/laboratorio/informe-de-ejemplo.pdf` (a fictitious patient) as the sample Meta reviews. That file must be reachable at `NEXT_PUBLIC_SITE_URL` (the production domain).
 
 ## WhatsApp
 

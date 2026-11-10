@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 import type { Database } from "./database.types";
 
 /** Routes that require a signed-in user. The page itself re-checks (see src/lib/auth.ts). */
-const PROTECTED_PREFIXES = ["/dashboard"];
+const PROTECTED_PREFIXES = ["/dashboard", "/imprimir"];
 /** Routes a signed-in user should be bounced away from. */
 const AUTH_ONLY_PREFIXES = ["/login"];
 

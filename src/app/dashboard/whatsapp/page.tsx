@@ -178,7 +178,7 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
         <Card>
           <CardHeader
             title="Plantillas"
-            hint="Meta revisa cada mensaje que el centro envía primero; las dos son de categoría utilidad"
+            hint="Meta revisa cada mensaje que el centro envía primero; todas son de categoría utilidad"
             action={
               <Badge tone={approved.length === TEMPLATE_KINDS.length ? "teal" : "outline"}>
                 {approved.length} de {TEMPLATE_KINDS.length} aprobadas
@@ -205,14 +205,22 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
                   <details className="text-[13px]">
                     <summary className="cursor-pointer text-teal hover:text-navy">Ver el mensaje</summary>
                     <div className="mt-2 rounded-lg bg-cream px-3 py-2">
+                      {t.document && (
+                        <p className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-outline bg-white px-2 py-0.5 text-[12px] text-navy">
+                          <Icon name="file" className="size-3.5" />
+                          Resultados-Laboratorio.pdf
+                        </p>
+                      )}
                       <p className="whitespace-pre-line text-ink">{t.body}</p>
-                      <p className="mt-2 flex flex-wrap gap-1.5">
-                        {REPLY_BUTTONS.map((b) => (
-                          <span key={b.answer} className="rounded-md border border-outline bg-white px-2 py-0.5 text-[12px] text-navy">
-                            {b.text}
-                          </span>
-                        ))}
-                      </p>
+                      {t.buttons && (
+                        <p className="mt-2 flex flex-wrap gap-1.5">
+                          {REPLY_BUTTONS.map((b) => (
+                            <span key={b.answer} className="rounded-md border border-outline bg-white px-2 py-0.5 text-[12px] text-navy">
+                              {b.text}
+                            </span>
+                          ))}
+                        </p>
+                      )}
                     </div>
                   </details>
                 </li>

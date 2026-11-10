@@ -1,6 +1,7 @@
 import "server-only";
 
 import { addDays, clinicToday } from "@/lib/crm/clinic";
+import { deleteOldWhatsAppPdfs } from "@/lib/lab/whatsapp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { zernioConfig } from "./config";
 import { TEMPLATE_KINDS, TEMPLATE_LANGUAGE, TEMPLATES, templateParams, type MessageKind } from "./templates";
@@ -242,6 +243,13 @@ export async function runReminderJob() {
 
   const forgetBefore = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
   await admin.from("whatsapp_webhook_events").delete().lt("received_at", forgetBefore);
+
+  // Copies of lab PDFs that Meta has long since downloaded.
+  try {
+    await deleteOldWhatsAppPdfs(admin);
+  } catch (error) {
+    console.error("lab PDF cleanup failed", error instanceof Error ? error.message : error);
+  }
 
   return { ok: true as const, day: tomorrow, queued: queued?.length ?? 0, ...report };
 }

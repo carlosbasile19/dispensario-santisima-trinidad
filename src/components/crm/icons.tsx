@@ -9,9 +9,10 @@ export type IconName =
   | "chevron-down" | "chevrons" | "card" | "mobile" | "bank" | "send" | "coins" | "installments"
   | "stethoscope" | "tooth" | "flask" | "shield" | "star" | "refresh" | "id-card" | "bolt" | "alert"
   | "slots" | "calendar-check" | "map-pin" | "globe" | "chat" | "arrow-left" | "arrow-right" | "download"
-  | "copy" | "link" | "external" | "trash" | "pause" | "note";
+  | "copy" | "link" | "external" | "trash" | "pause" | "note"
+  | "file" | "printer" | "share" | "sigma" | "more" | "unlock" | "arrow-up" | "arrow-down" | "pen" | "fold";
 
-const PATHS: Record<IconName, ReactNode> = {
+const PATHS: Record<Exclude<IconName, keyof typeof EXTRA>, ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z" />,
   calendar: (
     <>
@@ -200,6 +201,47 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
 };
 
+const EXTRA: Record<"file" | "printer" | "share" | "sigma" | "more" | "unlock" | "arrow-up" | "arrow-down" | "pen" | "fold", ReactNode> = {
+  file: (
+    <>
+      <path d="M13.5 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5l-5-5Z" />
+      <path d="M13.5 3.5v5h5M9 13h6M9 16.5h4" />
+    </>
+  ),
+  printer: (
+    <>
+      <path d="M7 8.5V4h10v4.5M7 17H5a1.5 1.5 0 0 1-1.5-1.5v-5.5A1.5 1.5 0 0 1 5 8.5h14a1.5 1.5 0 0 1 1.5 1.5v5.5A1.5 1.5 0 0 1 19 17h-2" />
+      <path d="M7 14h10v6H7zM16.5 11.5h.01" />
+    </>
+  ),
+  share: (
+    <>
+      <circle cx="17.5" cy="5.5" r="2.5" />
+      <circle cx="6.5" cy="12" r="2.5" />
+      <circle cx="17.5" cy="18.5" r="2.5" />
+      <path d="m8.7 10.8 6.6-4M8.7 13.2l6.6 4" />
+    </>
+  ),
+  sigma: <path d="M17.5 5.5h-11l6 6.5-6 6.5h11" />,
+  more: (
+    <>
+      <circle cx="5.5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="18.5" cy="12" r="1" />
+    </>
+  ),
+  unlock: (
+    <>
+      <rect x="5" y="10.5" width="14" height="10" rx="2" />
+      <path d="M8 10.5V8a4 4 0 0 1 7.7-1.5" />
+    </>
+  ),
+  "arrow-up": <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" />,
+  "arrow-down": <path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" />,
+  pen: <path d="M4.5 19.5h4l10-10a2.8 2.8 0 0 0-4-4l-10 10v4ZM13.5 6.5l4 4" />,
+  fold: <path d="M4.5 4.5h15v15h-15zM4.5 12h15" strokeDasharray="0" />,
+};
+
 export function Icon({ name, className = "size-[18px]" }: { name: IconName; className?: string }) {
   return (
     <svg
@@ -212,7 +254,7 @@ export function Icon({ name, className = "size-[18px]" }: { name: IconName; clas
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {PATHS[name]}
+      {name in PATHS ? PATHS[name as keyof typeof PATHS] : EXTRA[name as keyof typeof EXTRA]}
     </svg>
   );
 }

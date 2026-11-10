@@ -6,9 +6,11 @@ import { Suspense } from "react";
 import { AppointmentList } from "@/components/crm/appointment-list";
 import { Icon } from "@/components/crm/icons";
 import { Modal } from "@/components/crm/modal";
-import { Avatar, Card, CardHeader, EmptyState, PageHeader, RowsSkeleton, Skeleton } from "@/components/crm/ui";
+import { Avatar, Badge, Card, CardHeader, EmptyState, PageHeader, RowsSkeleton, Skeleton } from "@/components/crm/ui";
 import { UNBILLED_STATUSES, ageOn, clinicToday, formatDay, formatDocument, isUuid, localDay, patientName } from "@/lib/crm/clinic";
 import { getBalances, getPatientAppointments, getProfessionals } from "@/lib/crm/data";
+import { listLabReports } from "@/lib/lab/data";
+import { reportNumber } from "@/lib/lab/report";
 import { formatUsd } from "@/lib/crm/money";
 import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -80,7 +82,11 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
   const p = viewer.permissions;
   const money = p.collectPayments || p.accounting;
   const today = await clinicToday();
-  const [appointments, professionals] = await Promise.all([getPatientAppointments(id), getProfessionals()]);
+  const [appointments, professionals, labReports] = await Promise.all([
+    getPatientAppointments(id),
+    getProfessionals(),
+    listLabReports({ patientIds: [id], limit: 10 }),
+  ]);
   const balances = money ? await getBalances(appointments.map((a) => a.id)) : undefined;
   // What is owed for visits up to today; future visits are not due yet.
   const owed = balances
@@ -109,15 +115,26 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
         title={name}
         description={`${appointments.length} ${appointments.length === 1 ? "cita" : "citas"}${money && owed > 0 ? ` · debe ${formatUsd(owed)}` : ""}`}
         actions={
-          p.manageSchedule && (
-            <Link
-              href={`/dashboard/agenda/nueva?paciente=${patient.id}`}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-navy px-4 text-sm font-medium text-white hover:bg-teal"
-            >
-              <Icon name="calendar" className="size-4" />
-              Agendar cita
-            </Link>
-          )
+          <>
+            {p.labReports && (
+              <Link
+                href={`/dashboard/laboratorio/nuevo?paciente=${patient.id}`}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline bg-white px-4 text-sm font-medium text-navy hover:border-navy"
+              >
+                <Icon name="flask" className="size-4" />
+                Informe de laboratorio
+              </Link>
+            )}
+            {p.manageSchedule && (
+              <Link
+                href={`/dashboard/agenda/nueva?paciente=${patient.id}`}
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-navy px-4 text-sm font-medium text-white hover:bg-teal"
+              >
+                <Icon name="calendar" className="size-4" />
+                Agendar cita
+              </Link>
+            )}
+          </>
         }
       />
 
@@ -131,6 +148,33 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
               <p className="px-5 py-4 text-sm text-muted">No tiene citas agendadas.</p>
             )}
           </Card>
+          {(labReports.length > 0 || p.labReports) && (
+            <Card>
+              <CardHeader title="Laboratorio" hint="Informes de resultados de este paciente" />
+              {labReports.length ? (
+                <ul className="divide-y divide-line">
+                  {labReports.map((r) => (
+                    <li key={r.id}>
+                      <Link href={`/dashboard/laboratorio/${r.id}`} className="flex items-center gap-4 px-5 py-3 hover:bg-cream">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-mint/25 text-[#135c62]">
+                          <Icon name="flask" className="size-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{r.summary.join(" · ") || "Sin exámenes"}</span>
+                          <span className="block text-[13px] text-muted">
+                            Nº {reportNumber(r.number)} · muestra del {formatDay(localDay(r.sampledAt), "short")}
+                          </span>
+                        </span>
+                        {r.status === "final" ? <Badge tone="teal">Validado</Badge> : <Badge tone="outline">Borrador</Badge>}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-5 py-4 text-sm text-muted">Todavía no tiene informes de laboratorio.</p>
+              )}
+            </Card>
+          )}
           <Card>
             <CardHeader title="Historial" hint="Citas anteriores, de la más reciente a la más antigua" />
             {past.length ? (

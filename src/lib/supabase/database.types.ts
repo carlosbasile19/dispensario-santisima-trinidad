@@ -358,6 +358,286 @@ export type Database = {
           },
         ]
       }
+      lab_report_deliveries: {
+        Row: {
+          channel: string
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          report_id: string
+          revision: number
+          status: string
+          to_phone: string | null
+          wamid: string | null
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          report_id: string
+          revision?: number
+          status?: string
+          to_phone?: string | null
+          wamid?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          report_id?: string
+          revision?: number
+          status?: string
+          to_phone?: string | null
+          wamid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_report_deliveries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_report_deliveries_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "lab_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_report_versions: {
+        Row: {
+          finalized_at: string
+          finalized_by: string | null
+          notes: string | null
+          patient_snapshot: Json
+          patient_type: string
+          report_id: string
+          requested_by: string | null
+          revision: number
+          sampled_at: string
+          sections: Json
+          signer: Json
+        }
+        Insert: {
+          finalized_at: string
+          finalized_by?: string | null
+          notes?: string | null
+          patient_snapshot: Json
+          patient_type: string
+          report_id: string
+          requested_by?: string | null
+          revision: number
+          sampled_at: string
+          sections: Json
+          signer: Json
+        }
+        Update: {
+          finalized_at?: string
+          finalized_by?: string | null
+          notes?: string | null
+          patient_snapshot?: Json
+          patient_type?: string
+          report_id?: string
+          requested_by?: string | null
+          revision?: number
+          sampled_at?: string
+          sections?: Json
+          signer?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_report_versions_finalized_by_fkey"
+            columns: ["finalized_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_report_versions_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "lab_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_reports: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          created_by: string | null
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          notes: string | null
+          number: number
+          patient_id: string
+          patient_snapshot: Json | null
+          patient_type: string
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          requested_by: string | null
+          revision: number
+          sampled_at: string
+          sections: Json
+          signer: Json | null
+          status: Database["public"]["Enums"]["lab_report_status"]
+          summary: string[]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          notes?: string | null
+          number?: never
+          patient_id: string
+          patient_snapshot?: Json | null
+          patient_type?: string
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          requested_by?: string | null
+          revision?: number
+          sampled_at?: string
+          sections?: Json
+          signer?: Json | null
+          status?: Database["public"]["Enums"]["lab_report_status"]
+          summary?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          notes?: string | null
+          number?: never
+          patient_id?: string
+          patient_snapshot?: Json | null
+          patient_type?: string
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          requested_by?: string | null
+          revision?: number
+          sampled_at?: string
+          sections?: Json
+          signer?: Json | null
+          status?: Database["public"]["Enums"]["lab_report_status"]
+          summary?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_reports_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_balances"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "lab_reports_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_reports_finalized_by_fkey"
+            columns: ["finalized_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_reports_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_reports_reopened_by_fkey"
+            columns: ["reopened_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_reports_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_settings: {
+        Row: {
+          id: boolean
+          signer_college: string | null
+          signer_id_number: string | null
+          signer_name: string
+          signer_registry: string | null
+          signer_title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          signer_college?: string | null
+          signer_id_number?: string | null
+          signer_name: string
+          signer_registry?: string | null
+          signer_title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          signer_college?: string | null
+          signer_id_number?: string | null
+          signer_name?: string
+          signer_registry?: string | null
+          signer_title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           address: string | null
@@ -847,6 +1127,7 @@ export type Database = {
           starts: string
         }[]
       }
+      can_build_lab_reports: { Args: never; Returns: boolean }
       can_collect_payments: { Args: never; Returns: boolean }
       can_manage_accounting: { Args: never; Returns: boolean }
       can_manage_calendars: { Args: never; Returns: boolean }
@@ -889,6 +1170,7 @@ export type Database = {
         Args: { calendar: string; special_day: string }
         Returns: undefined
       }
+      finalize_lab_report: { Args: { report: string }; Returns: string }
       is_member: { Args: never; Returns: boolean }
       is_my_appointment: { Args: { appointment: string }; Returns: boolean }
       is_my_patient: { Args: { patient: string }; Returns: boolean }
@@ -917,6 +1199,10 @@ export type Database = {
         }
         Returns: string
       }
+      reopen_lab_report: {
+        Args: { reason: string; report: string }
+        Returns: undefined
+      }
       reschedule_appointment: {
         Args: {
           appointment: string
@@ -943,6 +1229,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      sees_patient: { Args: { patient: string }; Returns: boolean }
       search_patients: {
         Args: { max_rows?: number; query?: string }
         Returns: {
@@ -1050,6 +1337,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+      lab_report_status: "draft" | "final"
       payment_method:
         | "cash_usd"
         | "zelle"
@@ -1195,6 +1483,7 @@ export const Constants = {
         "cancelled",
         "no_show",
       ],
+      lab_report_status: ["draft", "final"],
       payment_method: [
         "cash_usd",
         "zelle",

@@ -157,6 +157,15 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
             <Badge tone={status.tone}>{status.label}</Badge>
             {appointment.source === "online" && <Badge tone="navy">En línea</Badge>}
             {money && <PaymentBadge balance={balance} status={appointment.status} />}
+            {p.labReports && patient && appointment.items.some((item) => item.service?.area === "bioanalisis") && (
+              <Link
+                href={`/dashboard/laboratorio/nuevo?paciente=${patient.id}&cita=${appointment.id}`}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline bg-white px-4 text-sm font-medium text-navy hover:border-navy"
+              >
+                <Icon name="flask" className="size-4" />
+                Cargar resultados
+              </Link>
+            )}
             <Link
               href={`/dashboard/agenda?fecha=${day}`}
               className="inline-flex h-10 items-center rounded-lg border border-outline bg-white px-4 text-sm font-medium hover:border-navy"
