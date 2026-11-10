@@ -72,7 +72,7 @@ export const getRecentRates = cache(async (upTo: string, limit = 10) => {
 });
 
 const APPOINTMENT_FIELDS =
-  "id, starts_at, starts_on, duration_minutes, status, notes, " +
+  "id, starts_at, starts_on, duration_minutes, status, notes, source, patient_notes, " +
   "patient:patients(id, first_name, last_name, id_type, id_number, phone, birth_date), " +
   "items:appointment_items(id, service_id, professional_id, price_usd, list_price_usd, created_at, service:services(name, area))";
 
@@ -84,6 +84,10 @@ export type Appointment = {
   duration_minutes: number;
   status: AppointmentStatus;
   notes: string | null;
+  /** desk: booked by the front desk; online: by the patient on a booking calendar. */
+  source: "desk" | "online";
+  /** What the patient wrote when booking online. */
+  patient_notes: string | null;
   patient: {
     id: string;
     first_name: string;

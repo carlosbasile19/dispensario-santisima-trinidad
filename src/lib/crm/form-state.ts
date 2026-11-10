@@ -14,6 +14,9 @@ const BY_HINT: Record<string, string> = {
   missing_cashea_order: "Escribe el número de orden de Cashea.",
   invalid_initial_method: "Elige cómo pagó la inicial.",
   cashea_nothing_financed: "La inicial cubre toda la orden: Cashea no financia nada. Regístrala como un cobro normal.",
+  overlapping_hours: "Los horarios de un mismo día se solapan.",
+  invalid_hours: "Revisa los horarios.",
+  invalid_services: "Revisa los servicios.",
 };
 
 /** A message in Spanish for a database error, so members never see raw SQL errors. */

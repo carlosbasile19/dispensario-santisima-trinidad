@@ -12,11 +12,17 @@ import { ServiceLines, type ProfessionalOption, type ServiceOption } from "./ser
 export function AppointmentForm({
   patientId,
   day,
+  time,
+  professionalId,
   services,
   professionals,
 }: {
   patientId: string;
   day: string;
+  /** The time to start from (a free slot picked on a calendar); 08:00 otherwise. */
+  time?: string;
+  /** The professional of the first service (the calendar's). */
+  professionalId?: string;
   services: ServiceOption[];
   professionals: ProfessionalOption[];
 }) {
@@ -29,7 +35,7 @@ export function AppointmentForm({
           <DatePicker name="date" required defaultValue={day} />
         </Field>
         <Field label="Hora">
-          <TimePicker name="time" required defaultValue="08:00" />
+          <TimePicker name="time" required defaultValue={time ?? "08:00"} />
         </Field>
         <Field label="Duración">
           <Select
@@ -46,7 +52,7 @@ export function AppointmentForm({
         <p className="text-[13px] text-muted">
           Servicios. Cada uno con su profesional: una misma visita puede tener consulta, laboratorio y odontología.
         </p>
-        <ServiceLines services={services} professionals={professionals} />
+        <ServiceLines services={services} professionals={professionals} defaultProfessionalId={professionalId} />
       </div>
 
       <Field label="Nota para el equipo (opcional)">

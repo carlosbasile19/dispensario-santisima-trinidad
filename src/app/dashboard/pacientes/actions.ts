@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { isIdType, isIsoDate, isUuid, clinicToday } from "@/lib/crm/clinic";
+import { isIdType, isIsoDate, isTime, isUuid, clinicToday } from "@/lib/crm/clinic";
 import { dbErrorMessage, type FormState } from "@/lib/crm/form-state";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -84,8 +84,14 @@ export async function savePatient(_prev: FormState, formData: FormData): Promise
   }
 
   if (formData.get("then") === "book") {
+    const query = new URLSearchParams({ paciente: data.id });
     const day = formData.get("fecha");
-    redirect(`/dashboard/agenda/nueva?paciente=${data.id}${isIsoDate(day) ? `&fecha=${day}` : ""}`);
+    const time = formData.get("hora");
+    const professional = formData.get("profesional");
+    if (isIsoDate(day)) query.set("fecha", day);
+    if (isTime(time)) query.set("hora", time);
+    if (isUuid(professional)) query.set("profesional", professional);
+    redirect(`/dashboard/agenda/nueva?${query}`);
   }
   redirect(`/dashboard/pacientes/${data.id}`);
 }
