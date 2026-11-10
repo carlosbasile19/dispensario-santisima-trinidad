@@ -7,7 +7,9 @@ export type IconName =
   | "lock" | "plus" | "check" | "clock" | "phone" | "eye" | "logout" | "key"
   | "search" | "chevron-left" | "chevron-right" | "x" | "cash" | "tag"
   | "chevron-down" | "chevrons" | "card" | "mobile" | "bank" | "send" | "coins" | "installments"
-  | "stethoscope" | "tooth" | "flask" | "shield" | "star" | "refresh" | "id-card" | "bolt" | "alert";
+  | "stethoscope" | "tooth" | "flask" | "shield" | "star" | "refresh" | "id-card" | "bolt" | "alert"
+  | "slots" | "calendar-check" | "map-pin" | "globe" | "chat" | "arrow-left" | "arrow-right" | "download"
+  | "copy" | "link" | "external" | "trash" | "pause" | "note";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z" />,
@@ -145,6 +147,55 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M12 4 2.8 19.5h18.4L12 4Z" />
       <path d="M12 10v4.5M12 17.2v.1" />
+    </>
+  ),
+  slots: (
+    <>
+      <rect x="3.5" y="5" width="17" height="15" rx="2" />
+      <path d="M3.5 10h17M8 3v4M16 3v4M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 16.5h2M11 16.5h2" />
+    </>
+  ),
+  "calendar-check": (
+    <>
+      <rect x="3.5" y="5" width="17" height="15" rx="2" />
+      <path d="M3.5 10h17M8 3v4M16 3v4M9 15l2 2 4-4" />
+    </>
+  ),
+  "map-pin": (
+    <>
+      <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" />
+      <circle cx="12" cy="10" r="2.4" />
+    </>
+  ),
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.3 2.4 3.5 5.2 3.5 8.5s-1.2 6.1-3.5 8.5c-2.3-2.4-3.5-5.2-3.5-8.5s1.2-6.1 3.5-8.5Z" />
+    </>
+  ),
+  chat: <path d="M20 11.5a7.5 7.5 0 0 1-11.1 6.6L4 19.5l1.4-4.6A7.5 7.5 0 1 1 20 11.5Z" />,
+  "arrow-left": <path d="M19 12H5M11 6l-6 6 6 6" />,
+  "arrow-right": <path d="M5 12h14M13 6l6 6-6 6" />,
+  download: <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14" />,
+  copy: (
+    <>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+      <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+    </>
+  ),
+  link: <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />,
+  external: <path d="M13.5 4.5h6v6M19.5 4.5 11 13M17.5 13.5v4.5a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18V8A1.5 1.5 0 0 1 6 6.5h4.5" />,
+  trash: <path d="M4.5 7h15M9.5 7V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2M6.5 7l.8 11.5a1.5 1.5 0 0 0 1.5 1.5h6.4a1.5 1.5 0 0 0 1.5-1.5L17.5 7M10 11v5.5M14 11v5.5" />,
+  pause: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M10 9v6M14 9v6" />
+    </>
+  ),
+  note: (
+    <>
+      <path d="M5.5 4.5h13a1 1 0 0 1 1 1V15l-4.5 4.5H5.5a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1Z" />
+      <path d="M19.5 15H16a1 1 0 0 0-1 1v3.5M8.5 9h7M8.5 12.5h4" />
     </>
   ),
 };

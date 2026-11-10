@@ -34,12 +34,17 @@ export function PatientForm({
   patient,
   thenBook,
   day,
+  time,
+  professionalId,
   today,
   inModal = false,
 }: {
   patient?: Patient;
   thenBook?: boolean;
   day?: string;
+  /** With thenBook: the time and professional to book with (a slot picked on a calendar). */
+  time?: string;
+  professionalId?: string;
   /** Latest valid birth date. */
   today: string;
   inModal?: boolean;
@@ -54,6 +59,8 @@ export function PatientForm({
       {patient && <input type="hidden" name="id" value={patient.id} />}
       {thenBook && <input type="hidden" name="then" value="book" />}
       {day && <input type="hidden" name="fecha" value={day} />}
+      {time && <input type="hidden" name="hora" value={time} />}
+      {professionalId && <input type="hidden" name="profesional" value={professionalId} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nombres">

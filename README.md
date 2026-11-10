@@ -40,8 +40,9 @@ src/
     (auth)/login/             # email + password sign-in / sign-up (Server Actions)
     auth/confirm/route.ts     # email-link + OAuth callback (PKCE code or token_hash)
     auth/error/               # invalid/expired link page
-    dashboard/                # admin platform: Inicio, Agenda, Pacientes, Contabilidad,
-                              # Gestión, Miembros, Mi cuenta
+    dashboard/                # admin platform: Inicio, Agenda, Calendarios, Pacientes,
+                              # Contabilidad, Gestión, Miembros, Mi cuenta
+    agendar/                  # public booking pages: /agendar (all calendars), /agendar/<slug>
     acceso-pendiente/         # signed-in account with no role yet
   lib/crm/
     roles.ts                  # the four roles and what each may see (single source)
@@ -49,7 +50,11 @@ src/
     clinic.ts                 # labels (areas, statuses, payment methods) and America/Caracas dates
     money.ts                  # exact USD/Bs arithmetic, the same rounding as the database
     data.ts                   # shared reads: agenda, balances, rates, services, professionals
+    calendars.ts              # reads of the booking calendars: hours, special days, a week's visits
+    schedule.ts               # weekly hours, slot lengths, half hours and month grids (shared)
     form-state.ts             # what Server Actions answer, Spanish messages for DB errors
+  lib/booking/                # public booking: calendar reads (service role), phone numbers,
+                              # slugs, "add to my calendar" (.ics / Google Calendar)
   lib/bcv/                    # reads the BCV rate (bcv.org.ve, DolarAPI mirror) and records it
   app/api/cron/bcv/           # the daily job that runs it (Vercel Cron, see vercel.json)
   components/crm/             # platform UI: sidebar, cards, badges, icons, forms, rate form,
@@ -92,6 +97,20 @@ supabase/
   - Both lines carry the order number (`cashea_order`).
   - Contabilidad shows the financed amount apart from money actually received, since it reaches the centre later in cuotas.
 - The clinic's calendar is America/Caracas time, in the database (`clinic_today()`, `appointments.starts_on`) and on the screens (`lib/crm/clinic.ts`).
+
+## Calendarios and online booking
+
+Each professional (a member with the `doctor` or `director` role) can have one booking calendar, with a public link the centre sends to patients: `/agendar/<slug>`. `/agendar` lists every calendar that takes bookings.
+
+- **Calendarios** (`/dashboard/calendarios`). Everyone sees the calendars, a doctor only their own ("Mi calendario"); administrators create and edit them (`manageCalendars` in `roles.ts`, `can_manage_calendars()` in the database). Each calendar has three views:
+  - **Semana**: the week in a grid, the professional's hours in white and the rest hatched, each visit in its status colour (online bookings carry a globe). The front desk and administrators get a "+" on every free half hour, which opens Nueva cita with the day, time and professional filled in.
+  - **Horario**: the weekly hours (one or more ranges per day, on half hours) and the special days: a day off, or other hours on one date, which replace that date's weekly hours.
+  - **Servicios y reservas**: the services patients can book, each with **30-minute or 1-hour slots**, whether the calendar takes bookings (a paused one asks patients to write on WhatsApp), the specialty and intro patients read, the minimum notice, how far ahead and the link.
+- **Slots** last as long as the service and follow each other from the start of each range: in 07:30–12:00 a 1-hour service is offered at 07:30, 08:30, 09:30 and 10:30, a 30-minute one every half hour. A slot is free when it is past the minimum notice and within the horizon and overlaps no visit of the professional (cancelled and no-shows do not count), whoever booked it. The rules live in the database (`calendar_windows`, `calendar_free_slots`), so the page and the booking use the same ones.
+- **Booking.** The patient picks a service, a day and a time, then gives a mobile number. A number that belongs to one patient books straight away with the patient's record. A new number asks for name, last name and email and registers the patient (`patients.source = 'online'`). A number several patients share asks whose visit it is; "La cita es para otra persona" books for someone else on the same number. The patient's note goes on the visit (`appointments.patient_notes`); the visit is `scheduled` with `source = 'online'`, for the front desk to confirm.
+- **Privacy.** Patients have no account and never reach the database directly: the pages and the booking action call `booking_calendar`, `booking_directory` and `book_online` with the service role (`SUPABASE_SECRET_KEY`), and those functions are not executable by `anon` or members. They return public information and statuses only, never anything about a patient, and an unverified number can only add a visit to its record, never read or change it. Numbers are matched in international form (`patients.phone_e164`, from `normalize_phone()`; `src/lib/booking/phone.ts` mirrors it).
+- **Abuse limits** (`book_online`): 12 attempts per client in 15 minutes and 40 a day (by a keyed hash of the IP, never the IP itself; `booking_attempts`, kept two days), 20 online bookings per calendar per hour, 3 upcoming online visits per patient, and one booking at a time per calendar (an advisory lock), so two patients cannot take the same slot.
+- Without `SUPABASE_SECRET_KEY` the booking pages show a WhatsApp fallback instead of failing.
 
 ## Database rules
 

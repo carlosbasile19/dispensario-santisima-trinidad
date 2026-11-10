@@ -83,6 +83,8 @@ export type Database = {
           id: string
           notes: string | null
           patient_id: string
+          patient_notes: string | null
+          source: string
           starts_at: string
           starts_on: string | null
           status: Database["public"]["Enums"]["appointment_status"]
@@ -95,6 +97,8 @@ export type Database = {
           id?: string
           notes?: string | null
           patient_id: string
+          patient_notes?: string | null
+          source?: string
           starts_at: string
           starts_on?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
@@ -107,6 +111,8 @@ export type Database = {
           id?: string
           notes?: string | null
           patient_id?: string
+          patient_notes?: string | null
+          source?: string
           starts_at?: string
           starts_on?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
@@ -125,6 +131,185 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_attempts: {
+        Row: {
+          calendar_id: string | null
+          client_hash: string | null
+          created_at: string
+          id: number
+        }
+        Insert: {
+          calendar_id?: string | null
+          client_hash?: string | null
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          calendar_id?: string | null
+          client_hash?: string | null
+          created_at?: string
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_attempts_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_hours: {
+        Row: {
+          calendar_id: string
+          ends: string
+          starts: string
+          weekday: number
+        }
+        Insert: {
+          calendar_id: string
+          ends: string
+          starts: string
+          weekday: number
+        }
+        Update: {
+          calendar_id?: string
+          ends?: string
+          starts?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_hours_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_overrides: {
+        Row: {
+          calendar_id: string
+          created_at: string
+          day: string
+          ends: string | null
+          id: string
+          note: string | null
+          starts: string | null
+        }
+        Insert: {
+          calendar_id: string
+          created_at?: string
+          day: string
+          ends?: string | null
+          id?: string
+          note?: string | null
+          starts?: string | null
+        }
+        Update: {
+          calendar_id?: string
+          created_at?: string
+          day?: string
+          ends?: string | null
+          id?: string
+          note?: string | null
+          starts?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_overrides_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_services: {
+        Row: {
+          calendar_id: string
+          duration_minutes: number
+          position: number
+          service_id: string
+        }
+        Insert: {
+          calendar_id: string
+          duration_minutes?: number
+          position?: number
+          service_id: string
+        }
+        Update: {
+          calendar_id?: string
+          duration_minutes?: number
+          position?: number
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_services_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendars: {
+        Row: {
+          accepting: boolean
+          created_at: string
+          horizon_days: number
+          id: string
+          intro: string | null
+          min_notice_hours: number
+          professional_id: string
+          slug: string
+          specialty: string | null
+          updated_at: string
+        }
+        Insert: {
+          accepting?: boolean
+          created_at?: string
+          horizon_days?: number
+          id?: string
+          intro?: string | null
+          min_notice_hours?: number
+          professional_id: string
+          slug: string
+          specialty?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accepting?: boolean
+          created_at?: string
+          horizon_days?: number
+          id?: string
+          intro?: string | null
+          min_notice_hours?: number
+          professional_id?: string
+          slug?: string
+          specialty?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendars_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -187,7 +372,9 @@ export type Database = {
           last_name: string
           notes: string | null
           phone: string | null
+          phone_e164: string | null
           sex: string | null
+          source: string
           updated_at: string
         }
         Insert: {
@@ -203,7 +390,9 @@ export type Database = {
           last_name: string
           notes?: string | null
           phone?: string | null
+          phone_e164?: string | null
           sex?: string | null
+          source?: string
           updated_at?: string
         }
         Update: {
@@ -219,7 +408,9 @@ export type Database = {
           last_name?: string
           notes?: string | null
           phone?: string | null
+          phone_e164?: string | null
           sex?: string | null
+          source?: string
           updated_at?: string
         }
         Relationships: [
@@ -407,9 +598,60 @@ export type Database = {
       }
     }
     Functions: {
+      book_online: {
+        Args: {
+          calendar: string
+          client?: string
+          email?: string
+          first_name?: string
+          last_name?: string
+          local_day: string
+          local_time: string
+          notes?: string
+          phone: string
+          service: string
+        }
+        Returns: Json
+      }
+      booking_calendar: { Args: { calendar_slug: string }; Returns: Json }
+      booking_directory: { Args: never; Returns: Json }
+      calendar_check_ranges: { Args: { ranges: Json }; Returns: undefined }
+      calendar_free_slots: {
+        Args: {
+          calendar: string
+          from_day: string
+          service: string
+          to_day: string
+        }
+        Returns: {
+          day: string
+          starts: string
+        }[]
+      }
+      calendar_professionals: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          calendar_id: string
+          full_name: string
+          professional_id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
+      calendar_windows: {
+        Args: { calendar: string; from_day: string; to_day: string }
+        Returns: {
+          day: string
+          ends: string
+          special: boolean
+          starts: string
+        }[]
+      }
       can_collect_payments: { Args: never; Returns: boolean }
       can_manage_accounting: { Args: never; Returns: boolean }
+      can_manage_calendars: { Args: never; Returns: boolean }
       can_manage_schedule: { Args: never; Returns: boolean }
+      can_see_calendar: { Args: { calendar: string }; Returns: boolean }
       clinic_professionals: {
         Args: never
         Returns: {
@@ -430,13 +672,28 @@ export type Database = {
         }
         Returns: string
       }
+      create_calendar: {
+        Args: {
+          link_name: string
+          offered: Json
+          professional: string
+          specialty_label: string
+        }
+        Returns: string
+      }
       current_app_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      delete_calendar_special_day: {
+        Args: { calendar: string; special_day: string }
+        Returns: undefined
+      }
       is_member: { Args: never; Returns: boolean }
       is_my_appointment: { Args: { appointment: string }; Returns: boolean }
       is_my_patient: { Args: { patient: string }; Returns: boolean }
+      name_key: { Args: { name: string }; Returns: string }
+      normalize_phone: { Args: { raw: string }; Returns: string }
       payment_method_currency: {
         Args: { method: Database["public"]["Enums"]["payment_method"] }
         Returns: string
@@ -470,6 +727,23 @@ export type Database = {
         }
         Returns: undefined
       }
+      save_calendar_hours: {
+        Args: { calendar: string; hours: Json }
+        Returns: undefined
+      }
+      save_calendar_services: {
+        Args: { calendar: string; offered: Json }
+        Returns: undefined
+      }
+      save_calendar_special_day: {
+        Args: {
+          calendar: string
+          ranges: Json
+          reason: string
+          special_day: string
+        }
+        Returns: undefined
+      }
       search_patients: {
         Args: { max_rows?: number; query?: string }
         Returns: {
@@ -485,7 +759,9 @@ export type Database = {
           last_name: string
           notes: string | null
           phone: string | null
+          phone_e164: string | null
           sex: string | null
+          source: string
           updated_at: string
         }[]
         SetofOptions: {

@@ -26,6 +26,8 @@ export type Permissions = {
   manageSchedule: boolean;
   /** Take payments at the front desk and set today's BCV rate. */
   collectPayments: boolean;
+  /** Calendarios: create the booking calendars and edit their hours, services and links. */
+  manageCalendars: boolean;
   /** Contabilidad: the price list, any day's BCV rate, voiding payments. */
   accounting: boolean;
   management: boolean;
@@ -47,6 +49,7 @@ export const ROLE_INFO: Record<
       documents: "own",
       manageSchedule: false,
       collectPayments: false,
+      manageCalendars: false,
       accounting: false,
       management: false,
       members: false,
@@ -63,6 +66,7 @@ export const ROLE_INFO: Record<
       documents: "all",
       manageSchedule: false,
       collectPayments: false,
+      manageCalendars: false,
       accounting: false,
       management: false,
       members: false,
@@ -79,6 +83,7 @@ export const ROLE_INFO: Record<
       documents: "all",
       manageSchedule: true,
       collectPayments: true,
+      manageCalendars: false,
       accounting: false,
       management: false,
       members: false,
@@ -95,6 +100,7 @@ export const ROLE_INFO: Record<
       documents: "all",
       manageSchedule: true,
       collectPayments: true,
+      manageCalendars: true,
       accounting: true,
       management: true,
       members: true,
@@ -116,7 +122,7 @@ export const ROLE_ICON: Record<Role, IconName> = {
 export const roleOptions = () =>
   ROLES.map((role) => ({ value: role, label: ROLE_INFO[role].label, description: ROLE_INFO[role].description, icon: ROLE_ICON[role] }));
 
-export type NavIcon = "home" | "calendar" | "patients" | "ledger" | "building" | "team" | "key";
+export type NavIcon = "home" | "calendar" | "slots" | "patients" | "ledger" | "building" | "team" | "key";
 export type NavItem = { href: string; label: string; icon: NavIcon };
 export type NavGroup = { title: string; items: NavItem[] };
 
@@ -129,6 +135,7 @@ export function navFor(role: Role): NavGroup[] {
       items: [
         { href: "/dashboard", label: "Inicio", icon: "home" },
         { href: "/dashboard/agenda", label: "Agenda", icon: "calendar" },
+        { href: "/dashboard/calendarios", label: p.schedule === "own" ? "Mi calendario" : "Calendarios", icon: "slots" },
         { href: "/dashboard/pacientes", label: "Pacientes", icon: "patients" },
       ],
     },
@@ -161,6 +168,10 @@ export const PERMISSION_MATRIX: { group: string; rows: { label: string; level: (
       },
       { label: "Ver y descargar documentos", level: (r) => scopeLevel(can(r).documents) },
       { label: "Cobrar en recepción y cargar la tasa BCV del día", level: (r) => (can(r).collectPayments ? "full" : "none") },
+      {
+        label: "Calendarios de reserva: horarios, servicios y enlaces",
+        level: (r) => (can(r).manageCalendars ? "full" : can(r).schedule === "all" ? "read" : "own"),
+      },
     ],
   },
   {

@@ -154,6 +154,7 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
         actions={
           <>
             <Badge tone={status.tone}>{status.label}</Badge>
+            {appointment.source === "online" && <Badge tone="navy">En línea</Badge>}
             {money && <PaymentBadge balance={balance} status={appointment.status} />}
             <Link
               href={`/dashboard/agenda?fecha=${day}`}
@@ -295,6 +296,28 @@ async function Appointment({ params, viewer }: { params: Params; viewer: Viewer 
                     </SubmitButton>
                   </div>
                 </ActionForm>
+              </div>
+            </Card>
+          )}
+
+          {appointment.source === "online" && (
+            <Card>
+              <CardHeader
+                title="Agendada en línea"
+                hint={
+                  appointment.status === "scheduled"
+                    ? "El paciente la reservó desde el enlace del calendario. Confírmala por WhatsApp o llamada."
+                    : "El paciente la reservó desde el enlace del calendario."
+                }
+              />
+              <div className="flex gap-3 px-5 py-4">
+                <Icon name="note" className="mt-0.5 size-[18px] shrink-0 text-teal" />
+                <div className="min-w-0">
+                  <p className="text-[12px] tracking-[0.04em] text-stone uppercase">Nota del paciente</p>
+                  <p className="mt-1 text-sm whitespace-pre-line text-ink">
+                    {appointment.patient_notes || "No dejó notas."}
+                  </p>
+                </div>
               </div>
             </Card>
           )}

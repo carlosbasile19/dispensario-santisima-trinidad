@@ -14,7 +14,7 @@ import {
   RowsSkeleton,
   Skeleton,
 } from "@/components/crm/ui";
-import { ageOn, clinicToday, formatDocument, isIsoDate, isUuid, param, patientName } from "@/lib/crm/clinic";
+import { ageOn, clinicToday, formatDocument, isIsoDate, isTime, isUuid, param, patientName } from "@/lib/crm/clinic";
 import { getProfessionals, getServices } from "@/lib/crm/data";
 import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +24,9 @@ export const metadata: Metadata = { title: "Nueva cita" };
 
 // Nueva cita (front desk and administrators). Step 1 finds the patient, or
 // registers a new one and comes back; step 2 books the visit. The step comes
-// from the URL, so it streams in below the header.
+// from the URL, so it streams in below the header. A free half hour of a
+// calendar's week opens it with ?fecha=, ?hora= and ?profesional=, which
+// both steps carry along and the booking form starts from.
 export default async function NewAppointmentPage({ searchParams }: PageProps<"/dashboard/agenda/nueva">) {
   const viewer = await getViewer();
   if (!viewer.permissions.manageSchedule) return <NoAccess role={viewer.role} section="Nueva cita" />;
@@ -53,17 +55,30 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/d
 async function Step({ searchParams }: { searchParams: PageProps<"/dashboard/agenda/nueva">["searchParams"] }) {
   const [params, today] = await Promise.all([searchParams, clinicToday()]);
   const day = isIsoDate(param(params.fecha)) ? param(params.fecha) : today;
+  const time = isTime(param(params.hora)) ? param(params.hora) : undefined;
+  const professionalId = isUuid(param(params.profesional)) ? param(params.profesional) : undefined;
   const patientId = param(params.paciente);
+  const slot: Slot = { day, time, professionalId };
 
   return isUuid(patientId) ? (
-    <BookingStep patientId={patientId} day={day} today={today} />
+    <BookingStep patientId={patientId} slot={slot} />
   ) : (
-    <PatientStep query={param(params.q)} day={day} />
+    <PatientStep query={param(params.q)} slot={slot} />
   );
 }
 
-function PatientStep({ query, day }: { query: string; day: string }) {
-  const registerHref = `/dashboard/pacientes/nuevo?agendar=1&fecha=${day}`;
+/** The day, and when coming from a calendar the time and professional, that both steps carry along. */
+type Slot = { day: string; time?: string; professionalId?: string };
+
+const slotQuery = ({ day, time, professionalId }: Slot) => {
+  const query = new URLSearchParams({ fecha: day });
+  if (time) query.set("hora", time);
+  if (professionalId) query.set("profesional", professionalId);
+  return query.toString();
+};
+
+function PatientStep({ query, slot }: { query: string; slot: Slot }) {
+  const registerHref = `/dashboard/pacientes/nuevo?agendar=1&${slotQuery(slot)}`;
 
   return (
     <Card>
@@ -78,7 +93,9 @@ function PatientStep({ query, day }: { query: string; day: string }) {
         }
       />
       <form action="/dashboard/agenda/nueva" className="flex gap-2 px-5 py-4">
-        <input type="hidden" name="fecha" value={day} />
+        <input type="hidden" name="fecha" value={slot.day} />
+        {slot.time && <input type="hidden" name="hora" value={slot.time} />}
+        {slot.professionalId && <input type="hidden" name="profesional" value={slot.professionalId} />}
         <input
           type="search"
           name="q"
@@ -105,14 +122,14 @@ function PatientStep({ query, day }: { query: string; day: string }) {
             </div>
           }
         >
-          <PatientResults query={query} day={day} registerHref={registerHref} />
+          <PatientResults query={query} slot={slot} registerHref={registerHref} />
         </Suspense>
       )}
     </Card>
   );
 }
 
-async function PatientResults({ query, day, registerHref }: { query: string; day: string; registerHref: string }) {
+async function PatientResults({ query, slot, registerHref }: { query: string; slot: Slot; registerHref: string }) {
   const supabase = await createClient();
   const { data } = await supabase.rpc("search_patients", { query, max_rows: 20 });
   const results = data ?? [];
@@ -139,7 +156,7 @@ async function PatientResults({ query, day, registerHref }: { query: string; day
         return (
           <li key={p.id}>
             <Link
-              href={`/dashboard/agenda/nueva?paciente=${p.id}&fecha=${day}`}
+              href={`/dashboard/agenda/nueva?paciente=${p.id}&${slotQuery(slot)}`}
               className="flex items-center gap-3 px-5 py-3 hover:bg-cream"
             >
               <Avatar name={patientName(p)} size="sm" />
@@ -158,13 +175,15 @@ async function PatientResults({ query, day, registerHref }: { query: string; day
   );
 }
 
-async function BookingStep({ patientId, day, today }: { patientId: string; day: string; today: string }) {
+async function BookingStep({ patientId, slot }: { patientId: string; slot: Slot }) {
+  const { day } = slot;
   const supabase = await createClient();
-  const [{ data: patient }, services, professionals, viewer] = await Promise.all([
+  const [{ data: patient }, services, professionals, viewer, today] = await Promise.all([
     supabase.from("patients").select("id, first_name, last_name, id_type, id_number, phone, birth_date").eq("id", patientId).maybeSingle(),
     getServices(),
     getProfessionals(),
     getViewer(),
+    clinicToday(),
   ]);
   const offered = services.filter((s) => s.active);
 
@@ -175,7 +194,7 @@ async function BookingStep({ patientId, day, today }: { patientId: string; day: 
           icon="patients"
           title="No encontramos ese paciente"
           action={
-            <Link href={`/dashboard/agenda/nueva?fecha=${day}`} className="text-sm font-medium text-teal hover:text-navy">
+            <Link href={`/dashboard/agenda/nueva?${slotQuery(slot)}`} className="text-sm font-medium text-teal hover:text-navy">
               Buscar otro paciente
             </Link>
           }
@@ -204,7 +223,7 @@ async function BookingStep({ patientId, day, today }: { patientId: string; day: 
                 .join(" · ")}
             </p>
           </div>
-          <Link href={`/dashboard/agenda/nueva?fecha=${day}`} className="text-sm font-medium text-teal hover:text-navy">
+          <Link href={`/dashboard/agenda/nueva?${slotQuery(slot)}`} className="text-sm font-medium text-teal hover:text-navy">
             Cambiar paciente
           </Link>
         </div>
@@ -216,6 +235,8 @@ async function BookingStep({ patientId, day, today }: { patientId: string; day: 
           <AppointmentForm
             patientId={patient.id}
             day={day}
+            time={slot.time}
+            professionalId={slot.professionalId}
             services={offered}
             professionals={professionals.list}
           />

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { Card, CardHeader, FormSkeleton, NoAccess, PageHeader, Skeleton } from "@/components/crm/ui";
-import { clinicToday, isIsoDate, param } from "@/lib/crm/clinic";
+import { clinicToday, isIsoDate, isTime, isUuid, param } from "@/lib/crm/clinic";
 import { getViewer } from "@/lib/crm/viewer";
 import { PatientForm } from "../patient-form";
 
@@ -60,5 +60,15 @@ async function Header({ searchParams }: { searchParams: SearchParams }) {
 async function NewPatientForm({ searchParams }: { searchParams: SearchParams }) {
   const [params, today] = await Promise.all([searchParams, clinicToday()]);
   const day = param(params.fecha);
-  return <PatientForm thenBook={thenBook(params)} day={isIsoDate(day) ? day : undefined} today={today} />;
+  const time = param(params.hora);
+  const professional = param(params.profesional);
+  return (
+    <PatientForm
+      thenBook={thenBook(params)}
+      day={isIsoDate(day) ? day : undefined}
+      time={isTime(time) ? time : undefined}
+      professionalId={isUuid(professional) ? professional : undefined}
+      today={today}
+    />
+  );
 }

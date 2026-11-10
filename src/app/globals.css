@@ -287,6 +287,31 @@ input.no-spin {
   }
 }
 
+/* Public booking pages (app/agendar): each step and new field eases in; the
+   confirmation's check pops once; the phone bar rises from the bottom. */
+@media (prefers-reduced-motion: no-preference) {
+  .booking-enter {
+    animation: rise 0.45s var(--ease-out-soft) both;
+  }
+  .booking-pop {
+    animation: booking-pop 0.6s var(--ease-out-soft) both;
+  }
+  .booking-bar {
+    animation: sheet-in 0.32s var(--ease-out-soft) both;
+  }
+}
+
+@keyframes booking-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
 @keyframes modal-in {
   from {
     opacity: 0;

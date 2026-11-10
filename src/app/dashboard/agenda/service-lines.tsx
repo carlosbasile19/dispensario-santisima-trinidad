@@ -45,7 +45,7 @@ export function serviceOptions(services: ServiceOption[]): SelectOption[] {
 
 type Line = { key: number; serviceId: string; professionalId: string; price: string; edited: boolean };
 
-const newLine = (key: number): Line => ({ key, serviceId: "", professionalId: "", price: "", edited: false });
+const newLine = (key: number, professionalId = ""): Line => ({ key, serviceId: "", professionalId, price: "", edited: false });
 
 /**
  * The services of a visit. Each line is a service with its own professional
@@ -56,13 +56,18 @@ export function ServiceLines({
   services,
   professionals,
   single = false,
+  defaultProfessionalId,
 }: {
   services: ServiceOption[];
   professionals: ProfessionalOption[];
   /** Exactly one line (adding a service to an existing visit). */
   single?: boolean;
+  /** The professional the first line starts with (booking from a calendar). */
+  defaultProfessionalId?: string;
 }) {
-  const [lines, setLines] = useState<Line[]>([newLine(0)]);
+  const [lines, setLines] = useState<Line[]>(() => [
+    newLine(0, professionals.some((p) => p.id === defaultProfessionalId) ? defaultProfessionalId : ""),
+  ]);
   const byId = new Map(services.map((s) => [s.id, s]));
   const serviceChoices = serviceOptions(services);
   const professionalChoices = professionalOptions(professionals);

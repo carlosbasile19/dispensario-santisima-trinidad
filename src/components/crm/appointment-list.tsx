@@ -13,6 +13,7 @@ import {
   patientName,
 } from "@/lib/crm/clinic";
 import { formatUsd } from "@/lib/crm/money";
+import { Icon } from "./icons";
 import { Badge } from "./ui";
 
 /** Paid in full, part paid or nothing yet, for a visit that is charged. */
@@ -94,7 +95,15 @@ export function AppointmentList({
               </div>
 
               <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
-                <Badge tone={status.tone}>{status.label}</Badge>
+                <span className="flex items-center gap-2">
+                  {a.source === "online" && (
+                    <span title="Agendada en línea por el paciente" className="inline-flex items-center gap-1 text-[12px] text-teal">
+                      <Icon name="globe" className="size-3.5" />
+                      En línea
+                    </span>
+                  )}
+                  <Badge tone={status.tone}>{status.label}</Badge>
+                </span>
                 {balance && (
                   <span className="flex items-center gap-2">
                     <span className="text-[13px] whitespace-nowrap text-muted">{formatUsd(balance.total)}</span>
