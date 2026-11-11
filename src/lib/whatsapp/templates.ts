@@ -74,7 +74,7 @@ export const TEMPLATES: Record<TemplateKind, TemplateDefinition> = {
   reminder: {
     name: "recordatorio_cita",
     label: "Recordatorio",
-    description: "Sale la tarde anterior a la cita.",
+    description: "Sale una hora antes de la cita.",
     buttons: true,
     body: lines(
       `Hola, {{1}}. Te recordamos tu próxima cita en el ${LEGAL_NAME}:`,

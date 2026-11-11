@@ -280,8 +280,8 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
             <Switch
               name="send_reminders"
               defaultChecked={settings?.send_reminders ?? true}
-              label="Recordatorio el día anterior"
-              description="Sale cada tarde para las citas del día siguiente, con los mismos botones."
+              label="Recordatorio una hora antes"
+              description="Sale una hora antes de cada cita, con los mismos botones. Si la cita se agendó menos de tres horas antes, basta la confirmación."
             />
             <Switch
               name="send_doctor_alerts"

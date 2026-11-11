@@ -1,7 +1,6 @@
 import "server-only";
 import { saveTemplateStatuses } from "./template-status";
 
-import { addDays, clinicToday } from "@/lib/crm/clinic";
 import { deleteOldWhatsAppPdfs } from "@/lib/lab/whatsapp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { zernioConfig } from "./config";
@@ -322,12 +321,38 @@ export async function syncTemplateStatuses(admin: Admin, apiKey: string, account
 }
 
 /**
- * The daily job (/api/cron/whatsapp, the afternoon before): refreshes the
- * templates' status, sends any doctors' alert left pending, queues
- * tomorrow's reminders, sends them with anything still pending from the last
- * day, and forgets old webhook event ids.
+ * Every five minutes (/api/cron/whatsapp/reminders, called by pg_cron):
+ * queues the reminders of the visits that start within the hour and sends
+ * them, with any reminder of the last hour still pending (a run cut short).
+ * Cheap when there is nothing to send: two small queries.
  */
-export async function runReminderJob() {
+export async function runHourBeforeReminders() {
+  const admin = createAdminClient();
+  if (!admin || !zernioConfig()) return { ok: false as const, reason: "not_configured" };
+
+  const { data: queued, error } = await admin.rpc("whatsapp_queue_reminders");
+  if (error) {
+    console.error("whatsapp_queue_reminders failed", error.code, error.message);
+    return { ok: false as const, reason: "queue_failed" };
+  }
+  const since = new Date(Date.now() - 60 * 60_000).toISOString();
+  const { data: pending } = await admin
+    .from("whatsapp_messages")
+    .select("id")
+    .eq("kind", "reminder")
+    .eq("status", "pending")
+    .gte("created_at", since);
+  const report = await deliverMessages([...(queued ?? []), ...(pending ?? []).map((row) => row.id)], admin);
+  return { ok: true as const, queued: queued?.length ?? 0, ...report };
+}
+
+/**
+ * The daily job (/api/cron/whatsapp): refreshes the templates' status, marks
+ * sends cut off mid-way, sends any doctors' alert or message left pending
+ * from the last day, and forgets old webhook event ids and lab PDF copies.
+ * The reminders go out one hour before each visit (runHourBeforeReminders).
+ */
+export async function runDailyWhatsAppJob() {
   const admin = createAdminClient();
   const config = zernioConfig();
   if (!admin || !config) return { ok: false as const, reason: "not_configured" };
@@ -350,20 +375,12 @@ export async function runReminderJob() {
     admin.from("lab_report_deliveries").update(interrupted).eq("channel", "whatsapp").eq("status", "sending").lt("created_at", stuckBefore),
   ]);
 
-  const tomorrow = addDays(await clinicToday(), 1);
-  const { data: queued, error } = await admin.rpc("whatsapp_queue_reminders", { for_day: tomorrow });
-  if (error) {
-    // A reminder queue failure must not prevent the independent doctor alerts.
-    await deliverDoctorAlerts(admin);
-    console.error("whatsapp_queue_reminders failed", error.code, error.message);
-    return { ok: false as const, reason: "queue_failed" };
-  }
   const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
   const { data: pending } = await admin.from("whatsapp_messages").select("id").eq("status", "pending").gte("created_at", since);
-  const ids = [...(queued ?? []), ...(pending ?? []).map((row) => row.id)];
   const forgetBefore = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
   const [report, alerts] = await Promise.all([
-    deliverMessages(ids, admin),
+    // A visit already past is skipped (deliverMessages checks the time).
+    deliverMessages((pending ?? []).map((row) => row.id), admin),
     // Normally sent seconds after booking; this catches any left in the queue.
     deliverDoctorAlerts(admin),
     admin.from("whatsapp_webhook_events").delete().lt("received_at", forgetBefore),
@@ -372,5 +389,5 @@ export async function runReminderJob() {
     }),
   ]);
 
-  return { ok: true as const, day: tomorrow, queued: queued?.length ?? 0, ...report, alerts };
+  return { ok: true as const, ...report, alerts };
 }
