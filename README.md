@@ -169,7 +169,11 @@ Each professional (a member with the `doctor` or `director` role) can have one b
 
 Confirmations and reminders to patients, and alerts of new visits to doctors, go out from the clinic's own number through [Zernio](https://zernio.com), a Meta Tech Provider, with **Coexistence**: the number stays in the WhatsApp Business app on the front desk's phone and works on the WhatsApp Cloud API at the same time. Messages are mirrored both ways, so the front desk sees every automatic message, and the patient's answer, in the app.
 
-- **What goes out.** A confirmation when a visit is booked (online or in Nueva cita) and a reminder the afternoon before (`/api/cron/whatsapp`, Vercel Cron at 20:30 UTC, about 16:30 in Caracas). Both are UTILITY templates (`lib/whatsapp/templates.ts`) with three buttons:
+- **What goes out.** A confirmation when a visit is booked (online or in Nueva cita) and a reminder one hour before the visit (`/api/cron/whatsapp/reminders`). A visit whose confirmation went out less than three hours before it starts gets no reminder, since the confirmation is still fresh.
+  - **Timing.** Vercel Cron on the Hobby plan runs once a day, so the database calls the reminders route every five minutes (pg_cron + pg_net, migration `20261111205916_whatsapp_reminder_schedule`). Each run queues the visits starting 15 to 60 minutes from now (`whatsapp_queue_reminders`), so a reminder leaves 55 to 60 minutes before. The request carries a token kept in Vault (`whatsapp_reminders_token`) and checked by `whatsapp_reminders_token_ok`; `Bearer $CRON_SECRET` also works, to run it by hand. Runs are listed in `cron.job_run_details` and the answers in `net._http_response`.
+  - The daily job (`/api/cron/whatsapp`, Vercel Cron at 20:30 UTC) refreshes the templates' status, sends anything left pending and cleans up.
+
+  Both messages are UTILITY templates (`lib/whatsapp/templates.ts`) with three buttons:
   - **Confirmar asistencia** makes the visit `confirmed`.
   - **Cancelar cita** makes it `cancelled`, which frees the slot.
   - **Reprogramar** changes nothing; the front desk follows up in the chat.

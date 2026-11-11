@@ -1610,7 +1610,8 @@ export type Database = {
         }
         Returns: string
       }
-      whatsapp_queue_reminders: { Args: { for_day: string }; Returns: string[] }
+      whatsapp_queue_reminders: { Args: never; Returns: string[] }
+      whatsapp_reminders_token_ok: { Args: { token: string }; Returns: boolean }
       whatsapp_reachable: { Args: { phone: string }; Returns: boolean }
       whatsapp_record_status: {
         Args: {
