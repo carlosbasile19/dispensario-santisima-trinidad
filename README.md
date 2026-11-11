@@ -50,6 +50,7 @@ src/
     viewer.ts                 # current member + role from the database
     clinic.ts                 # labels (areas, statuses, payment methods) and America/Caracas dates
     money.ts                  # exact USD/Bs arithmetic, the same rounding as the database
+    expenses.ts               # Gastos: pay-out methods, Monday-Sunday weeks, supplier accounts
     data.ts                   # shared reads: agenda, balances, rates, services, professionals
     calendars.ts              # reads of the booking calendars: hours, special days, a week's visits
     schedule.ts               # weekly hours, slot lengths, half hours and month grids (shared)

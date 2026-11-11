@@ -30,7 +30,7 @@ export type Permissions = {
   manageCalendars: boolean;
   /** Laboratorio: build, validate and correct lab result reports (everyone who sees a patient can print and send them). */
   labReports: boolean;
-  /** Contabilidad: the price list, any day's BCV rate, voiding payments. */
+  /** Contabilidad: the price list, any day's BCV rate, voiding payments, expenses and suppliers. */
   accounting: boolean;
   management: boolean;
   members: boolean;
@@ -189,7 +189,7 @@ export const PERMISSION_MATRIX: { group: string; rows: { label: string; level: (
   {
     group: "Administración",
     rows: [
-      { label: "Contabilidad: tarifas, tasas BCV y anular cobros", level: (r) => (can(r).accounting ? "full" : "none") },
+      { label: "Contabilidad: tarifas, tasas BCV, gastos y anular cobros", level: (r) => (can(r).accounting ? "full" : "none") },
       { label: "Gestión del centro", level: (r) => (can(r).management ? "full" : "none") },
       { label: "Miembros y permisos", level: (r) => (can(r).members ? "full" : "none") },
     ],
