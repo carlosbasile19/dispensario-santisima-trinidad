@@ -15,8 +15,10 @@ import { createClient } from "@/lib/supabase/server";
 import { CONNECT_COOKIE, zernioConfig } from "@/lib/whatsapp/config";
 import { QUALITY_LABEL, templateStatus, tierLabel } from "@/lib/whatsapp/labels";
 import { syncTemplateStatuses } from "@/lib/whatsapp/send";
+import { templateReviewAction } from "@/lib/whatsapp/template-review";
+import { saveTemplateStatuses } from "@/lib/whatsapp/template-status";
 import { TEMPLATE_KINDS, TEMPLATE_LANGUAGE, TEMPLATE_TTL_SECONDS, TEMPLATES, templateComponents } from "@/lib/whatsapp/templates";
-import { createTemplate, getConnectUrl, getNumberInfo, listWhatsAppAccounts, ZernioError } from "@/lib/whatsapp/zernio";
+import { createTemplate, getConnectUrl, getNumberInfo, listWhatsAppAccounts, updateTemplate, ZernioError } from "@/lib/whatsapp/zernio";
 
 // The WhatsApp page (administrators only). Every action checks the member
 // first; the settings' RLS lets only administrators change the switches,
@@ -143,7 +145,7 @@ export async function saveDoctorWhatsApp(_prev: FormState, formData: FormData): 
   return { message: "Número guardado." };
 }
 
-/** Submits the templates Meta has not seen yet to its review, then refreshes every status. */
+/** Creates missing templates and resubmits corrected rejected variants for review. */
 export async function submitWhatsAppTemplates(): Promise<FormState> {
   const viewer = await getViewer();
   if (!viewer.permissions.management) return { error: NO_ACCESS };
@@ -155,13 +157,16 @@ export async function submitWhatsAppTemplates(): Promise<FormState> {
 
   try {
     const remote = await syncTemplateStatuses(admin, config.apiKey, account.zernio_account_id);
-    const missing = TEMPLATE_KINDS.filter(
-      (kind) => !remote.some((t) => t.name === TEMPLATES[kind].name && t.language === TEMPLATE_LANGUAGE),
-    );
+    const submissions = TEMPLATE_KINDS.flatMap((kind) => {
+      const existing = remote.find((t) => t.name === TEMPLATES[kind].name && t.language === TEMPLATE_LANGUAGE);
+      const action = templateReviewAction(existing?.status);
+      return action ? [{ kind, action }] : [];
+    });
     // The results template's review needs a sample PDF Meta can download: a report of a fictitious patient.
     const samplePdfUrl = `${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || (await requestOrigin())}/laboratorio/informe-de-ejemplo.pdf`;
-    for (const kind of missing) {
-      const created = await createTemplate(config.apiKey, {
+    for (const { kind, action } of submissions) {
+      const submit = action === "update" ? updateTemplate : createTemplate;
+      const created = await submit(config.apiKey, {
         accountId: account.zernio_account_id,
         name: TEMPLATES[kind].name,
         language: TEMPLATE_LANGUAGE,
@@ -169,25 +174,18 @@ export async function submitWhatsAppTemplates(): Promise<FormState> {
         components: templateComponents(kind, { samplePdfUrl }),
         ttlSeconds: TEMPLATE_TTL_SECONDS,
       });
-      await admin.from("whatsapp_templates").upsert(
-        {
-          name: created.name,
-          language: created.language || TEMPLATE_LANGUAGE,
-          status: created.status || "PENDING",
-          meta_template_id: created.id || null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "name,language" },
-      );
+      await saveTemplateStatuses(admin, [created]);
     }
     refresh();
     return {
-      message: missing.length
+      message: submissions.length
         ? "Plantillas enviadas a Meta. La revisión suele tardar minutos (hasta 24 horas); el estado se actualiza solo."
         : "Meta ya tiene todas las plantillas. Estado actualizado.",
     };
   } catch (error) {
-    console.error("WhatsApp template submit failed", error instanceof Error ? error.message : error);
+    console.error("WhatsApp template submit failed", error instanceof ZernioError
+      ? { message: error.message, status: error.status, code: error.code, platformCode: error.platformCode }
+      : error instanceof Error ? error.message : error);
     refresh();
     return { error: zernioProblem(error, "No se pudieron enviar las plantillas.") };
   }

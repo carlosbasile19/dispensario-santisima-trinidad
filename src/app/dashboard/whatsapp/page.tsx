@@ -12,6 +12,7 @@ import { getViewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { missingZernioEnv } from "@/lib/whatsapp/config";
 import { MESSAGE_KIND_LABEL, MESSAGE_STATUS, REPLY_LABEL, templateStatus } from "@/lib/whatsapp/labels";
+import { templateReviewAction } from "@/lib/whatsapp/template-review";
 import { REPLY_BUTTONS, TEMPLATE_KINDS, TEMPLATE_LANGUAGE, TEMPLATES } from "@/lib/whatsapp/templates";
 import {
   checkWhatsAppConnection,
@@ -91,7 +92,9 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
   const approved = TEMPLATE_KINDS.filter((kind) =>
     templates?.some((t) => t.name === TEMPLATES[kind].name && t.language === TEMPLATE_LANGUAGE && t.status === "APPROVED"),
   );
-  const allSubmitted = TEMPLATE_KINDS.every((kind) => templates?.some((t) => t.name === TEMPLATES[kind].name && t.language === TEMPLATE_LANGUAGE));
+  const needsReview = TEMPLATE_KINDS.some((kind) => templateReviewAction(
+    templates?.find((t) => t.name === TEMPLATES[kind].name && t.language === TEMPLATE_LANGUAGE)?.status,
+  ));
   // Alerts come newest first: the first one of each professional is their latest.
   const doctors: DoctorAlertRow[] = professionals.list
     .filter((p) => p.role === "doctor" || p.role === "director")
@@ -249,7 +252,7 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
           </ul>
           {connected && (
             <div className="flex flex-wrap gap-2 border-t border-line px-5 py-4">
-              {!allSubmitted && (
+              {needsReview && (
                 <ActionForm action={submitWhatsAppTemplates}>
                   <SubmitButton icon="send" pendingLabel="Enviando…">
                     Enviar a Meta para revisión

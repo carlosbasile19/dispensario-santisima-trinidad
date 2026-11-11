@@ -14,9 +14,9 @@
 // see the patient, so it names the patient and the services booked with them,
 // still without the cédula, the phone or the patient's own notes.
 //
-// Changing a template's text means a new name (Meta reviews each one): add
-// it here, submit it from the WhatsApp page, and keep the old one until the
-// new one is approved.
+// Rejected templates can be corrected and resubmitted under the same name.
+// For an approved template, use a new name and keep the old one until the
+// replacement is approved.
 
 import { AREA_LABEL, formatDay, formatTime, localDay, type ServiceArea } from "@/lib/crm/clinic";
 import { ADDRESS_SHORT, LEGAL_NAME } from "@/lib/site-config";
@@ -97,13 +97,11 @@ export const TEMPLATES: Record<TemplateKind, TemplateDefinition> = {
     document: true,
     buttons: false,
     body: lines(
-      "Hola, {{1}}. Tus resultados de laboratorio de la muestra del {{2}} están listos: te los enviamos en el PDF adjunto.",
+      "Hola, {{1}}. Te enviamos el informe de los análisis de laboratorio que solicitaste, correspondientes a la muestra del {{2}}.",
       "",
-      "Para abrirlo, la clave es {{3}}.",
+      "El informe está adjunto en PDF. Para abrirlo, usa {{3}}.",
       "",
-      `Los validó {{4}}, bioanalista del ${LEGAL_NAME}.`,
-      "",
-      "Llévalos a tu médico para que los interprete en tu próxima consulta.",
+      `El informe fue validado por {{4}}, bioanalista del ${LEGAL_NAME}.`,
     ),
   },
   doctor_alert: {
@@ -140,7 +138,7 @@ export function templateComponents(kind: TemplateKind, { samplePdfUrl }: { sampl
       // Zernio downloads the sample (a report of a fictitious patient) and uploads it to Meta for the review.
       { type: "header", format: "document", example: { header_handle: [samplePdfUrl ?? ""] } },
       { type: "body", text: TEMPLATES[kind].body, example: { body_text: [LAB_EXAMPLE] } },
-      { type: "footer", text: "Responde a este chat si tienes alguna pregunta." },
+      { type: "footer", text: "Documento correspondiente a tu solicitud de laboratorio." },
     ];
   }
   if (kind === "doctor_alert") {
