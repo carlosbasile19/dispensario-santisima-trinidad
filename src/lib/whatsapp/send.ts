@@ -1,4 +1,5 @@
 import "server-only";
+import { saveTemplateStatuses } from "./template-status";
 
 import { addDays, clinicToday } from "@/lib/crm/clinic";
 import { deleteOldWhatsAppPdfs } from "@/lib/lab/whatsapp";
@@ -316,13 +317,7 @@ export async function deliverDoctorAlerts(admin: Admin | null = createAdminClien
 export async function syncTemplateStatuses(admin: Admin, apiKey: string, accountId: string) {
   const remote = await listTemplates(apiKey, accountId);
   const ours = new Set(TEMPLATE_KINDS.map((kind) => TEMPLATES[kind].name));
-  const rows = remote
-    .filter((t) => ours.has(t.name) && t.language)
-    .map((t) => ({ name: t.name, language: t.language, status: t.status || "PENDING", meta_template_id: t.id || null, updated_at: nowIso() }));
-  if (rows.length) {
-    const { error } = await admin.from("whatsapp_templates").upsert(rows, { onConflict: "name,language" });
-    if (error) throw new Error(`whatsapp_templates: ${error.message}`);
-  }
+  await saveTemplateStatuses(admin, remote.filter((t) => ours.has(t.name) && t.language));
   return remote;
 }
 

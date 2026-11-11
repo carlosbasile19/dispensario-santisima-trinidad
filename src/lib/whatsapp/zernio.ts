@@ -153,18 +153,21 @@ export async function getNumberInfo(apiKey: string, accountId: string): Promise<
 
 // Templates ------------------------------------------------------------------------
 
-export type ZernioTemplate = { id: string; name: string; language: string; status: string; category: string };
+export type ZernioTemplate = { id: string; name: string; language: string; status: string; category: string; reason: string | null };
+
+function readTemplate(t: Record<string, unknown>): ZernioTemplate {
+  const reason = str(t.rejected_reason) || str(t.reason);
+  const status = str(t.status).toUpperCase();
+  return {
+    id: str(t.id), name: str(t.name), language: str(t.language), status, category: str(t.category),
+    reason: status === "REJECTED" && reason && reason !== "NONE" ? reason.slice(0, 1000) : null,
+  };
+}
 
 export async function listTemplates(apiKey: string, accountId: string): Promise<ZernioTemplate[]> {
   const data = await call<{ templates?: unknown }>(apiKey, "/whatsapp/templates", { query: { accountId } });
   const list = Array.isArray(data?.templates) ? (data.templates as Record<string, unknown>[]) : [];
-  return list.map((t) => ({
-    id: str(t.id),
-    name: str(t.name),
-    language: str(t.language),
-    status: str(t.status).toUpperCase(),
-    category: str(t.category),
-  }));
+  return list.map(readTemplate);
 }
 
 /** Submits a template to Meta's review (usually minutes, up to 24 hours). */
@@ -185,7 +188,27 @@ export async function createTemplate(
     },
   });
   const t = data?.template ?? {};
-  return { id: str(t.id), name: str(t.name) || template.name, language: str(t.language) || template.language, status: str(t.status).toUpperCase() || "PENDING", category: str(t.category) };
+  return readTemplate({ ...t, name: str(t.name) || template.name, language: str(t.language) || template.language, status: str(t.status) || "PENDING" });
+}
+
+/** Corrects an existing rejected variant and sends it back to Meta's review. */
+export async function updateTemplate(
+  apiKey: string,
+  template: { accountId: string; name: string; language: string; components: unknown[]; ttlSeconds?: number },
+): Promise<ZernioTemplate> {
+  const data = await call<{ template?: Record<string, unknown> }>(apiKey, `/whatsapp/templates/${encodeURIComponent(template.name)}`, {
+    method: "PATCH",
+    body: {
+      accountId: template.accountId,
+      language: template.language,
+      components: template.components,
+      ...(template.ttlSeconds ? { message_send_ttl_seconds: template.ttlSeconds } : {}),
+    },
+  });
+  const t = data?.template ?? {};
+  // A successful PATCH can echo the previous status if Meta's readback fails.
+  // Keep it as returned; the next sync or webhook supplies the review verdict.
+  return readTemplate({ ...t, name: str(t.name) || template.name, language: str(t.language) || template.language, status: str(t.status) || "PENDING" });
 }
 
 // Sending ----------------------------------------------------------------------------
