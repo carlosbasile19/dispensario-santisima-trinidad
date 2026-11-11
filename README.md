@@ -233,7 +233,7 @@ https://*-<vercel-team-slug>.vercel.app/**
 
 ## Performance
 
-Apply `20261111142541_paginate_patient_and_lab_lists.sql` before deploying the new patient and laboratory pages. It adds three caller-authorized RPCs and indexes. The application expects those RPCs; they are tested against isolated Postgres fixtures, not automatically applied to the hosted database.
+Apply `20261111144611_paginate_patient_and_lab_lists.sql` before deploying the new patient and laboratory pages. It adds three caller-authorized RPCs and indexes. The application expects those RPCs; they are tested against isolated Postgres fixtures, not automatically applied to the hosted database.
 
 Patients and reports show 50 records per page, with one extra row to detect the next page. Patient visit history has separate upcoming and past pages; its count and amount owed cover the full visible record. Search waits 350 ms after typing stops, preserves filters, and returns to page one. Laboratory search filters patients inside Postgres, so it can find a patient beyond the former 200-result lookup limit.
 

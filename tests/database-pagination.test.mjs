@@ -77,7 +77,7 @@ before(async () => {
       ('${id(115)}', '${id(260)}', '2020-01-01T12:00:00Z', 'completed', -5),
       ('${id(999)}', '${id(999)}', '2020-01-01T12:00:00Z', 'completed', 9999);
   `);
-  await db.exec(await readFile(new URL("../supabase/migrations/20261111142541_paginate_patient_and_lab_lists.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/20261111144611_paginate_patient_and_lab_lists.sql", import.meta.url), "utf8"));
 });
 
 after(async () => { await db.close(); });
