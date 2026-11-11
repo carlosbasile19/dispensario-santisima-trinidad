@@ -13,6 +13,7 @@ import { LAB_DISCLAIMER, LAB_INFO } from "../config";
 import { clockTime, dayLong, documentOf, fullName, sexLabel, stampLong } from "../format";
 import { FLAG_INFO, flagFor, formatAge, rangeBar, referenceLines, type PatientFacts } from "../reference";
 import { PATIENT_TYPE_LABEL, groupRows, printedSections, reportNumber, tally } from "../report";
+import type { SignatureImage } from "../signature";
 import type { Flag, ReportContent, ReportPatient, ReportRow, ReportSigner } from "../types";
 
 export const PDF_FONTS = { sans: "Instrument Sans", serif: "Newsreader", mono: "JetBrains Mono", script: "Great Vibes" } as const;
@@ -136,6 +137,8 @@ const s = StyleSheet.create({
   check: { flexDirection: "row", alignItems: "center" },
   checkText: { fontSize: 8.6, color: C.tealDark, fontWeight: 600, marginLeft: 5 },
   signMeta: { fontSize: 7.6, color: C.muted, marginTop: 3, lineHeight: 1.35 },
+  // Its foot just touches the line, as a pen signature does.
+  signImage: { width: 170, height: 56, objectFit: "contain", marginBottom: -4 },
   signLine: { width: "100%", height: 0.9, backgroundColor: C.navy, marginBottom: 6 },
   signName: { fontFamily: PDF_FONTS.serif, fontSize: 12.5, color: C.navy },
   signTitle: { fontSize: 7.8, color: C.muted, marginTop: 2 },
@@ -163,9 +166,31 @@ export type PdfReport = {
   finalizedAt: string | null;
   /** When this copy was made (drafts). */
   generatedAt: string;
+  /** The signer's handwritten signature, drawn over the line of a validated report. */
+  signature?: SignatureImage | null;
 };
 
 export type PdfAssets = { markWhite: Buffer; markNavy: Buffer };
+
+/** A copy that asks for a key before it opens (the one sent by WhatsApp). */
+export type PdfLock = { userPassword: string; ownerPassword: string };
+
+// AES-128 (PDF 1.7), which every phone's PDF viewer opens. The patient's key
+// opens it to read, print and copy; nothing else needs the owner's key.
+const lockProps = (lock: PdfLock) => ({
+  pdfVersion: "1.7" as const,
+  userPassword: lock.userPassword,
+  ownerPassword: lock.ownerPassword,
+  permissions: {
+    printing: "highResolution" as const,
+    copying: true,
+    contentAccessibility: true,
+    modifying: false,
+    annotating: false,
+    fillingForms: false,
+    documentAssembly: false,
+  },
+});
 
 function Arrow({ flag, color }: { flag: Flag; color: string }) {
   if (flag === "A") {
@@ -301,7 +326,7 @@ function Cell({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function LabReportDocument({ report, assets }: { report: PdfReport; assets: PdfAssets }) {
+export function LabReportDocument({ report, assets, lock }: { report: PdfReport; assets: PdfAssets; lock?: PdfLock }) {
   const { patient, facts, content, signer } = report;
   const number = reportNumber(report.number);
   const name = fullName(patient);
@@ -319,6 +344,7 @@ export function LabReportDocument({ report, assets }: { report: PdfReport; asset
       creator={LAB_INFO.legalName}
       producer={LAB_INFO.legalName}
       language="es-VE"
+      {...(lock ? lockProps(lock) : {})}
     >
       <Page size="LETTER" style={s.page} wrap>
         {/* Pages 2+: who and which report, so a loose page is never anonymous. */}
@@ -331,7 +357,7 @@ export function LabReportDocument({ report, assets }: { report: PdfReport; asset
                 <View style={s.runnerBrand}>
                   {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt */}
                   <Image src={{ data: assets.markNavy, format: "png" }} style={s.runnerMark} />
-                  <Text style={s.runnerText}>Santísima Trinidad · Laboratorio clínico</Text>
+                  <Text style={s.runnerText}>Centro Médico Integral Santísima Trinidad · Laboratorio clínico</Text>
                 </View>
                 <Text style={s.runnerMuted}>
                   {name}
@@ -498,6 +524,10 @@ export function LabReportDocument({ report, assets }: { report: PdfReport; asset
             </View>
             {signer ? (
               <View style={s.signRight}>
+                {!draft && report.signature ? (
+                  // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt
+                  <Image src={{ data: report.signature.data, format: report.signature.format }} style={s.signImage} />
+                ) : null}
                 <View style={s.signLine} />
                 <Text style={s.signName}>{signer.name}</Text>
                 <Text style={s.signTitle}>{signer.title}</Text>

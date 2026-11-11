@@ -166,7 +166,20 @@ export type ReportListItem = {
   finalizedAt: string | null;
   patient: { id: string; first_name: string; last_name: string; id_type: string | null; id_number: string | null } | null;
   delivered: string[];
+  /** How far the report got on WhatsApp: its best send ("read" beats "delivered"…), or a failure. */
+  whatsApp: "sending" | "sent" | "delivered" | "read" | "failed" | null;
 };
+
+const WHATSAPP_RANK = ["failed", "sending", "sent", "delivered", "read"] as const;
+
+/** The furthest any of the report's WhatsApp sends got. */
+function whatsAppState(deliveries: { channel: string; status: string }[]): ReportListItem["whatsApp"] {
+  let best = -1;
+  for (const d of deliveries) {
+    if (d.channel === "whatsapp") best = Math.max(best, WHATSAPP_RANK.indexOf(d.status as (typeof WHATSAPP_RANK)[number]));
+  }
+  return best < 0 ? null : WHATSAPP_RANK[best];
+}
 
 /** The latest reports, newest first, optionally only drafts or validated ones and of some patients. */
 export async function listLabReports({ status, patientIds, limit = 60 }: { status?: Status; patientIds?: string[]; limit?: number }) {
@@ -193,10 +206,11 @@ export async function listLabReports({ status, patientIds, limit = 60 }: { statu
       delivered: [
         ...new Set(
           (row.lab_report_deliveries ?? [])
-            .filter((d) => d.status === "done" || d.status === "sent")
+            .filter((d) => ["done", "sent", "delivered", "read"].includes(d.status))
             .map((d) => d.channel),
         ),
       ],
+      whatsApp: whatsAppState(row.lab_report_deliveries ?? []),
     }),
   );
 }

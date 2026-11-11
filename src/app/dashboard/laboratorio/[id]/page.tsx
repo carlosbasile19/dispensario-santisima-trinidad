@@ -20,8 +20,9 @@ import { dayLong, documentOf, fullName, sexLabel, stampLong, clockTime } from "@
 import { FLAG_INFO, formatAge } from "@/lib/lab/reference";
 import { PATIENT_TYPE_LABEL, reportNumber, tally } from "@/lib/lab/report";
 import { suggestPanels } from "@/lib/lab/search";
-import { whatsAppReadiness } from "@/lib/lab/whatsapp";
+import { automaticSend, whatsAppReadiness } from "@/lib/lab/whatsapp";
 import { createClient } from "@/lib/supabase/server";
+import { failureLabel } from "@/lib/whatsapp/labels";
 import { reopenLabReport } from "../actions";
 
 export const metadata: Metadata = { title: "Informe de laboratorio" };
@@ -71,7 +72,7 @@ async function visitServices(appointmentId: string | null) {
 }
 
 async function Builder({ report }: { report: LabReport }) {
-  const [settings, visit] = await Promise.all([getLabSettings(), visitServices(report.appointmentId)]);
+  const [settings, visit, autoSend] = await Promise.all([getLabSettings(), visitServices(report.appointmentId), automaticSend(report)]);
   return (
     <ReportEditor
       id={report.id}
@@ -85,6 +86,7 @@ async function Builder({ report }: { report: LabReport }) {
       visit={visit.label}
       reopenReason={report.reopenReason}
       canDiscard={!report.reopenedAt}
+      autoSend={autoSend}
     />
   );
 }
@@ -94,6 +96,14 @@ const CHANNEL: Record<string, { label: string; icon: IconName }> = {
   share: { label: "Compartido desde un dispositivo", icon: "share" },
   download: { label: "PDF descargado", icon: "download" },
   whatsapp: { label: "Enviado por WhatsApp", icon: "chat" },
+};
+
+/** A WhatsApp send, as far as Meta has told us (the webhook moves it on). */
+const WHATSAPP_STATE: Record<string, string> = {
+  sending: "Enviando por WhatsApp…",
+  sent: "Enviado por WhatsApp",
+  delivered: "Entregado por WhatsApp",
+  read: "Leído en WhatsApp",
 };
 
 async function Delivered({ report, viewer }: { report: LabReport; viewer: Viewer }) {
@@ -108,7 +118,8 @@ async function Delivered({ report, viewer }: { report: LabReport; viewer: Viewer
   const number = reportNumber(report.number);
   const final = report.status === "final";
   const { results, flagged } = tally(report.content.sections, report.facts);
-  const sentByWhatsApp = deliveries.some((d) => d.channel === "whatsapp" && d.status === "sent");
+  // The newest WhatsApp send of this revision that did not fail (deliveries come newest first).
+  const onWhatsApp = deliveries.find((d) => d.channel === "whatsapp" && d.revision === report.revision && d.status !== "failed");
   const validatedBy = report.finalizedBy ? professionals.byId.get(report.finalizedBy)?.name : null;
   const phone = report.livePatient?.phone_e164 ?? null;
   const signerName = report.signer?.name ?? "el bioanalista";
@@ -143,7 +154,7 @@ async function Delivered({ report, viewer }: { report: LabReport; viewer: Viewer
           <>
             {final ? <Badge tone="teal">Validado</Badge> : <Badge tone="outline">Borrador</Badge>}
             {report.revision > 1 && <Badge tone="navy">Revisión {report.revision}</Badge>}
-            {sentByWhatsApp && <Badge tone="solid">Enviado por WhatsApp</Badge>}
+            {onWhatsApp && <Badge tone={onWhatsApp.status === "read" ? "teal" : "solid"}>{WHATSAPP_STATE[onWhatsApp.status] ?? "Enviado por WhatsApp"}</Badge>}
           </>
         }
       />
@@ -159,6 +170,7 @@ async function Delivered({ report, viewer }: { report: LabReport; viewer: Viewer
             phoneDigits={phone ? phone.replace(/^\+/, "") : null}
             message={message}
             whatsApp={readiness}
+            sentBefore={Boolean(onWhatsApp)}
             patientHref={`/dashboard/pacientes/${report.patientId}`}
             canConfigure={viewer.permissions.management}
           />
@@ -284,22 +296,43 @@ async function Delivered({ report, viewer }: { report: LabReport; viewer: Viewer
 
 function DeliveryRow({ delivery }: { delivery: Delivery }) {
   const channel = CHANNEL[delivery.channel] ?? { label: delivery.channel, icon: "send" as IconName };
+  const whatsApp = delivery.channel === "whatsapp";
   const failed = delivery.status === "failed";
+  // Accepted by WhatsApp and failed later (the webhook), or refused at once.
+  const title = failed
+    ? delivery.error_code === "interrupted"
+      ? "Envío por WhatsApp interrumpido"
+      : delivery.wamid
+        ? "No llegó por WhatsApp"
+        : "No se envió por WhatsApp"
+    : whatsApp
+      ? (WHATSAPP_STATE[delivery.status] ?? channel.label)
+      : channel.label;
+  const progress = [
+    delivery.delivered_at && `Entregado: ${stampLong(delivery.delivered_at)}`,
+    delivery.read_at && `Leído: ${stampLong(delivery.read_at)}`,
+  ].filter(Boolean);
   return (
     <li className="flex items-start gap-3 px-5 py-3">
-      <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${failed ? "bg-coral/10 text-[#b03a36]" : "bg-frost text-navy"}`}>
+      <span
+        className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+          failed ? "bg-coral/10 text-[#b03a36]" : delivery.status === "read" ? "bg-mint/30 text-[#135c62]" : "bg-frost text-navy"
+        }`}
+      >
         <Icon name={channel.icon} className="size-4" />
       </span>
       <div className="min-w-0 flex-1 text-sm">
         <p className={failed ? "text-[#b03a36]" : ""}>
-          {failed ? "No se envió por WhatsApp" : delivery.status === "sending" ? "Enviando por WhatsApp…" : channel.label}
+          {title}
+          {delivery.automatic && <span className="text-muted"> · automático al validar</span>}
           {delivery.revision > 1 && <span className="text-muted"> · rev. {delivery.revision}</span>}
         </p>
         <p className="text-[12px] text-muted">
           {stampLong(delivery.created_at)}
           {delivery.to_phone ? ` · ${delivery.to_phone}` : ""}
         </p>
-        {delivery.error && <p className="text-[12px] text-[#b03a36]">{delivery.error}</p>}
+        {progress.length > 0 && <p className="text-[12px] text-[#135c62]">{progress.join(" · ")}</p>}
+        {failed && <p className="text-[12px] text-[#b03a36]">{failureLabel(delivery.error_code, delivery.error)}</p>}
       </div>
     </li>
   );

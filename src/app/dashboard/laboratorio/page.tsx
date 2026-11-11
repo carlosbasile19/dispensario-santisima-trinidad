@@ -11,8 +11,11 @@ import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { countLabReports, getLabSettings, listLabReports } from "@/lib/lab/data";
 import { documentOf } from "@/lib/lab/format";
 import { reportNumber } from "@/lib/lab/report";
+import { SIGNATURE_BUCKET } from "@/lib/lab/signature";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { saveLabSettings } from "./actions";
+import { SignatureForm } from "./signature-form";
 
 export const metadata: Metadata = { title: "Laboratorio" };
 
@@ -278,8 +281,17 @@ async function Reports({ searchParams, viewer }: { searchParams: PageProps<"/das
   );
 }
 
+/** A link to the stored signature image for the preview, valid for an hour. */
+async function signatureLink(path: string | null | undefined) {
+  const admin = path ? createAdminClient() : null;
+  if (!path || !admin) return null;
+  const { data } = await admin.storage.from(SIGNATURE_BUCKET).createSignedUrl(path, 60 * 60);
+  return data?.signedUrl ?? null;
+}
+
 async function SignerSettings() {
   const settings = await getLabSettings();
+  const signature = await signatureLink(settings?.signer_signature);
   return (
     <Card>
       <CardHeader title="Firma de los informes" hint="El bioanalista cuyo nombre y registros firman cada informe validado. Los informes ya validados no cambian." />
@@ -301,10 +313,14 @@ async function SignerSettings() {
         </Field>
         <div className="flex items-end">
           <SubmitButton icon="check" pendingLabel="Guardando…">
-            Guardar firma
+            Guardar datos
           </SubmitButton>
         </div>
       </ActionForm>
+      <div className="border-t border-line">
+        <p className="px-5 pt-4 text-[13px] font-medium text-ink">Firma manuscrita para el PDF</p>
+        <SignatureForm src={signature} signer={settings?.signer_name ?? "Bioanalista"} />
+      </div>
     </Card>
   );
 }

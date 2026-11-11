@@ -185,6 +185,12 @@ export type ReportPatient = {
   sex: string | null;
 };
 
+/**
+ * What validating a report does on WhatsApp: the PDF goes out on its own to
+ * this phone, or not, and why (for the validation dialog).
+ */
+export type AutoSend = { will: true; phone: string } | { will: false; reason: string };
+
 /** The bioanalyst who signs, as copied into a validated report. */
 export type ReportSigner = {
   name: string;

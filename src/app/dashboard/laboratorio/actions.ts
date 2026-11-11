@@ -1,13 +1,18 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { isUuid } from "@/lib/crm/clinic";
 import { dbErrorMessage, type FormState } from "@/lib/crm/form-state";
 import { getViewer } from "@/lib/crm/viewer";
-import { sendLabResults } from "@/lib/lab/whatsapp";
+import { canDrawImage } from "@/lib/lab/pdf/render";
+import { imageFormat, SIGNATURE_BUCKET, SIGNATURE_MAX_BYTES } from "@/lib/lab/signature";
+import { sendLabResults, sendOnValidation } from "@/lib/lab/whatsapp";
 import { parseContent } from "@/lib/lab/report";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 // Laboratorio. Doctors and administrators build and validate reports
@@ -87,13 +92,20 @@ export async function saveLabReport(id: string, raw: unknown, expected: string):
   return { ok: true, updatedAt: data[0].updated_at };
 }
 
-/** Saves the last changes and validates (signs) the report. */
+/**
+ * Saves the last changes and validates (signs) the report. Then, when the
+ * administrators left it on and the patient accepted WhatsApp, its PDF goes
+ * out to the patient's WhatsApp, locked with their key. That takes a few
+ * seconds, so the page shows the delivery right away; a failed send leaves
+ * the report validated, with the error on its page and the button to retry.
+ */
 export async function validateLabReport(id: string, raw: unknown, expected: string): Promise<SaveResult> {
   const saved = await saveLabReport(id, raw, expected);
   if (!saved.ok) return saved;
   const supabase = await createClient();
   const { error } = await supabase.rpc("finalize_lab_report", { report: id });
   if (error) return { ok: false, error: labError(error, "No se pudo validar el informe.") };
+  await sendOnValidation(id);
   refresh();
   return saved;
 }
@@ -138,10 +150,10 @@ export async function logLabDelivery(id: string, channel: "print" | "share" | "d
 
 /** Sends the validated report's PDF from the clinic's WhatsApp number. */
 export async function sendLabReportWhatsApp(_prev: FormState, formData: FormData): Promise<FormState> {
-  await getViewer();
+  const viewer = await getViewer();
   const id = formData.get("report");
   if (!isUuid(id)) return { error: "Informe no válido." };
-  const result = await sendLabResults(id);
+  const result = await sendLabResults(id, { by: viewer.id });
   refresh();
   return result.ok ? { message: result.message } : { error: result.error };
 }
@@ -170,4 +182,56 @@ export async function saveLabSettings(_prev: FormState, formData: FormData): Pro
   if (error) return { error: labError(error) };
   refresh();
   return { message: "Firma guardada. Se usará en los próximos informes que se validen." };
+}
+
+const NO_SIGNATURE_ADMIN = "Solo un administrador cambia la firma de los informes.";
+
+/**
+ * The signer's handwritten signature, as an image (administrators). Only the
+ * PDF draws it (WhatsApp and downloads); the printed boleta is signed by hand.
+ */
+export async function uploadLabSignature(_prev: FormState, formData: FormData): Promise<FormState> {
+  const viewer = await getViewer();
+  if (viewer.role !== "admin") return { error: NO_SIGNATURE_ADMIN };
+  const file = formData.get("signature");
+  if (!(file instanceof File) || file.size === 0) return { error: "Elige la imagen de la firma." };
+  if (file.size > SIGNATURE_MAX_BYTES) return { error: "La imagen no puede pesar más de 1 MB." };
+  const data = Buffer.from(await file.arrayBuffer());
+  const format = imageFormat(data);
+  if (!format) return { error: "La firma debe ser una imagen PNG o JPG." };
+  if (!(await canDrawImage({ data, format }))) return { error: "No se pudo leer esa imagen. Guárdala de nuevo como PNG e inténtalo otra vez." };
+
+  const admin = createAdminClient();
+  if (!admin) return { error: "Falta configurar SUPABASE_SECRET_KEY en el servidor." };
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("lab_settings").select("signer_signature").maybeSingle();
+
+  const path = `${randomUUID()}.${format}`;
+  const { error: uploadError } = await admin.storage
+    .from(SIGNATURE_BUCKET)
+    .upload(path, data, { contentType: format === "png" ? "image/png" : "image/jpeg", upsert: false });
+  if (uploadError) return { error: "No se pudo subir la firma. Inténtalo de nuevo." };
+
+  const { error } = await supabase.from("lab_settings").update({ signer_signature: path }).eq("id", true);
+  if (error) {
+    await admin.storage.from(SIGNATURE_BUCKET).remove([path]);
+    return { error: labError(error, "No se pudo guardar la firma.") };
+  }
+  if (current?.signer_signature) await admin.storage.from(SIGNATURE_BUCKET).remove([current.signer_signature]);
+  refresh();
+  return { message: "Firma guardada. Va en el PDF de los informes validados que se envíen o descarguen." };
+}
+
+/** Removes the signature image: the PDF goes out with an empty line again. */
+export async function removeLabSignature(): Promise<FormState> {
+  const viewer = await getViewer();
+  if (viewer.role !== "admin") return { error: NO_SIGNATURE_ADMIN };
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("lab_settings").select("signer_signature").maybeSingle();
+  const { error } = await supabase.from("lab_settings").update({ signer_signature: null }).eq("id", true);
+  if (error) return { error: labError(error, "No se pudo quitar la firma.") };
+  const admin = createAdminClient();
+  if (admin && current?.signer_signature) await admin.storage.from(SIGNATURE_BUCKET).remove([current.signer_signature]);
+  refresh();
+  return { message: "Firma quitada. El PDF lleva la línea en blanco." };
 }

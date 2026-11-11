@@ -60,3 +60,23 @@ export function tierLabel(tier: string) {
   const value = match[1].replace(/K$/, ".000").replace(/^UNLIMITED$/, "sin límite");
   return value === "sin límite" ? "Sin límite diario" : `${value} pacientes distintos al día`;
 }
+
+/** What Meta's most common failure codes mean for the front desk. */
+const FAILURE_BY_CODE: Record<string, string> = {
+  "131026": "WhatsApp no pudo entregarlo: el número no tiene WhatsApp o su aplicación está desactualizada.",
+  "131021": "El número no es válido para WhatsApp.",
+  "131052": "WhatsApp no pudo descargar el PDF. Inténtalo de nuevo.",
+  "131053": "WhatsApp no pudo procesar el PDF. Inténtalo de nuevo.",
+  "131056": "Se enviaron demasiados mensajes seguidos a este número. Espera unos minutos e inténtalo de nuevo.",
+  "131000": "WhatsApp tuvo un error momentáneo. Inténtalo de nuevo.",
+  "130429": "WhatsApp está limitando los envíos en este momento. Inténtalo en unos minutos.",
+  "131031": "Meta bloqueó la cuenta de WhatsApp del centro. Revisa Administración › WhatsApp.",
+  "132000": "La plantilla no coincide con la aprobada. Revisa Administración › WhatsApp.",
+  "132001": "La plantilla no existe o no está aprobada. Revisa Administración › WhatsApp.",
+};
+
+/** A failed send in Spanish: Meta's code when we know it, else its own words. */
+export function failureLabel(code: string | null | undefined, detail: string | null | undefined) {
+  if (code && FAILURE_BY_CODE[code]) return FAILURE_BY_CODE[code];
+  return detail || "No se pudo entregar.";
+}

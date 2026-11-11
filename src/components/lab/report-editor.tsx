@@ -16,7 +16,7 @@ import { applyFormulas } from "@/lib/lab/formulas";
 import { FLAG_INFO, formatAge, patientFacts } from "@/lib/lab/reference";
 import { PATIENT_TYPE_LABEL, addPanel, addTest, reportNumber, tally, testsIn } from "@/lib/lab/report";
 import { panelSize } from "@/lib/lab/search";
-import { PATIENT_TYPES, type CategoryKey, type PatientType, type ReportContent, type ReportPatient, type ReportSigner } from "@/lib/lab/types";
+import { PATIENT_TYPES, type AutoSend, type CategoryKey, type PatientType, type ReportContent, type ReportPatient, type ReportSigner } from "@/lib/lab/types";
 import { CatalogPicker, type CatalogChoice } from "./catalog-picker";
 import { Dialog } from "./dialog";
 import { PreviewPane } from "./preview-pane";
@@ -43,6 +43,8 @@ export type EditorProps = {
   visit: string | null;
   reopenReason: string | null;
   canDiscard: boolean;
+  /** Whether validating also sends the PDF by WhatsApp, and where, or why not. */
+  autoSend: AutoSend;
 };
 
 export function ReportEditor(props: EditorProps) {
@@ -329,6 +331,7 @@ export function ReportEditor(props: EditorProps) {
         signer={props.signer}
         number={number}
         revision={props.revision}
+        autoSend={props.autoSend}
         onConfirm={async () => {
           if (inflight.current) await inflight.current;
           dirty.current = false;
@@ -621,6 +624,7 @@ function ValidateDialog({
   signer,
   number,
   revision,
+  autoSend,
   onConfirm,
 }: {
   open: boolean;
@@ -630,6 +634,7 @@ function ValidateDialog({
   signer: ReportSigner | null;
   number: string;
   revision: number;
+  autoSend: AutoSend;
   onConfirm: () => Promise<string | null>;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -671,7 +676,7 @@ function ValidateDialog({
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-navy px-4 text-sm font-medium text-white hover:bg-teal disabled:opacity-60"
           >
             <Icon name="shield" className="size-4" />
-            {pending ? "Validando…" : "Validar y firmar"}
+            {pending ? (autoSend.will ? "Validando y enviando…" : "Validando…") : "Validar y firmar"}
           </button>
         </>
       }
@@ -732,6 +737,19 @@ function ValidateDialog({
             <p className="mt-1 text-sm text-[#b03a36]">Falta el bioanalista que firma. Un administrador lo configura en Laboratorio.</p>
           )}
         </div>
+
+        <p
+          className={`flex gap-2 rounded-xl px-3 py-2.5 text-[13px] leading-relaxed ${
+            autoSend.will ? "bg-mint/15 text-[#135c62]" : "bg-cream text-muted"
+          }`}
+        >
+          <Icon name="chat" className="mt-0.5 size-4 shrink-0" />
+          <span>
+            {autoSend.will
+              ? `Al validarlo, el PDF sale solo por WhatsApp al ${autoSend.phone}, protegido con la clave del paciente.`
+              : `Al validarlo no sale por WhatsApp. ${autoSend.reason}`}
+          </span>
+        </p>
 
         <p className="flex gap-2 text-[13px] text-muted">
           <Icon name="lock" className="mt-0.5 size-4 shrink-0" />

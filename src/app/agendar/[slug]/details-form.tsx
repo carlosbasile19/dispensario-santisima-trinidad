@@ -23,14 +23,18 @@ export type DetailsValues = {
   lastName: string;
   email: string;
   phone: string;
-  /** Receive the confirmation and a reminder by WhatsApp (offered when the clinic's number is connected). */
-  whatsapp: boolean;
+  /**
+   * The form's one checkbox, required to book: the clinic keeps these
+   * details to look after the visit and writes by WhatsApp (confirmation,
+   * reminder and lab results).
+   */
+  consent: boolean;
 };
 
 /** none: a cédula the centre may know · details: a new patient, who gives name, last name, email and mobile. */
 export type Need = "none" | "details";
 
-export type FormProblem = { message: string; field?: "document" | "phone" | "email" | "name" };
+export type FormProblem = { message: string; field?: "document" | "phone" | "email" | "name" | "consent" };
 
 const input =
   "h-12 w-full min-w-0 rounded-xl border border-outline bg-white px-3.5 text-[16px] text-navy outline-none transition-[border-color,box-shadow] placeholder:text-stone hover:border-navy/50 focus:border-navy focus:shadow-[0_0_0_3px_rgba(27,42,85,0.1)] aria-invalid:border-coral aria-invalid:focus:shadow-[0_0_0_3px_rgba(217,83,79,0.14)]";
@@ -50,7 +54,8 @@ function Label({ htmlFor, children, hint }: { htmlFor: string; children: ReactNo
  * The patient's details. The cédula (or passport) finds the patient's
  * record, which is used as it is and never shown here. A document the centre
  * does not know asks for name, last name, email and mobile to register the
- * patient. A child without a cédula is booked by WhatsApp.
+ * patient. A child without a cédula is booked by WhatsApp. One checkbox,
+ * required, accepts the use of the details and the WhatsApp messages.
  */
 export function DetailsForm({
   values,
@@ -62,7 +67,6 @@ export function DetailsForm({
   onSubmit,
   onBack,
   summary,
-  offersWhatsApp = false,
 }: {
   values: DetailsValues;
   onChange: (patch: Partial<DetailsValues>) => void;
@@ -74,12 +78,11 @@ export function DetailsForm({
   onBack: () => void;
   /** The chosen slot, shown above the form on small screens. */
   summary: ReactNode;
-  /** Offer the confirmation and reminder by WhatsApp. */
-  offersWhatsApp?: boolean;
 }) {
   const id = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const firstName = useRef<HTMLInputElement>(null);
+  const consent = useRef<HTMLInputElement>(null);
   const passport = values.documentType === "P";
 
   // Arriving at the step moves focus to its title, for keyboards and screen readers.
@@ -91,6 +94,11 @@ export function DetailsForm({
   useEffect(() => {
     if (need === "details") firstName.current?.focus();
   }, [need]);
+
+  // Booking without the checkbox points at it.
+  useEffect(() => {
+    if (problem?.field === "consent") consent.current?.focus();
+  }, [problem]);
 
   const typeDocument = (value: string) => {
     // "V-12.345.678" typed whole also picks the type.
@@ -265,23 +273,30 @@ export function DetailsForm({
         />
       </div>
 
-      {offersWhatsApp && (
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-cream px-4 py-3">
-          <input
-            type="checkbox"
-            checked={values.whatsapp}
-            onChange={(e) => onChange({ whatsapp: e.target.checked })}
-            className="mt-0.5 size-[18px] shrink-0 accent-navy"
-          />
-          <span className="text-[14px] leading-relaxed text-navy">
-            Recibir la confirmación y un recordatorio de la cita por WhatsApp
-            <span className="mt-0.5 block text-[13px] text-muted">
-              Del Centro Médico Integral Santísima Trinidad, {need === "details" ? "al celular que escribiste" : "al celular de tu ficha"}.
-              Puedes pedirnos que dejemos de escribirte cuando quieras.
-            </span>
+      <label
+        className={`flex cursor-pointer items-start gap-3 rounded-xl border bg-cream px-4 py-3 transition-colors ${
+          problem?.field === "consent" ? "border-coral" : "border-line"
+        }`}
+      >
+        <input
+          ref={consent}
+          type="checkbox"
+          required
+          checked={values.consent}
+          onChange={(e) => onChange({ consent: e.target.checked })}
+          aria-invalid={problem?.field === "consent" || undefined}
+          aria-describedby={`${id}-consent`}
+          className="mt-0.5 size-[18px] shrink-0 accent-navy"
+        />
+        <span className="text-[14px] leading-relaxed text-navy">
+          Acepto el uso de estos datos y recibir mensajes por WhatsApp
+          <span id={`${id}-consent`} className="mt-0.5 block text-[13px] text-muted">
+            El Centro Médico Integral Santísima Trinidad los guarda para atender la cita y para escribirte por WhatsApp,{" "}
+            {need === "details" ? "al celular que escribiste" : "al celular de la ficha"}: la confirmación, un recordatorio y los
+            resultados de laboratorio. Puedes pedirnos que dejemos de escribirte cuando quieras.
           </span>
-        </label>
-      )}
+        </span>
+      </label>
 
       {problem && (
         <p role="alert" className="flex gap-2.5 rounded-xl bg-coral/10 px-4 py-3 text-[14px] text-[#b03a36]">

@@ -16,6 +16,14 @@ import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { PatientForm } from "../patient-form";
 
+/** A lab report's furthest WhatsApp send, on the patient's page. */
+const LAB_WHATSAPP: Record<string, string> = {
+  sent: "WhatsApp: enviado",
+  delivered: "WhatsApp: entregado",
+  read: "WhatsApp: leído",
+  failed: "WhatsApp: no llegó",
+};
+
 export const metadata: Metadata = { title: "Paciente" };
 
 type Params = PageProps<"/dashboard/pacientes/[id]">["params"];
@@ -165,6 +173,11 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
                             Nº {reportNumber(r.number)} · muestra del {formatDay(localDay(r.sampledAt), "short")}
                           </span>
                         </span>
+                        {r.whatsApp && r.whatsApp !== "sending" && (
+                          <Badge tone={r.whatsApp === "failed" ? "coral" : r.whatsApp === "read" ? "teal" : "neutral"}>
+                            {LAB_WHATSAPP[r.whatsApp]}
+                          </Badge>
+                        )}
                         {r.status === "final" ? <Badge tone="teal">Validado</Badge> : <Badge tone="outline">Borrador</Badge>}
                       </Link>
                     </li>

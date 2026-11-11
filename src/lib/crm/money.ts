@@ -45,7 +45,6 @@ export const centsToInput = (cents: bigint) => {
 };
 
 const twoDecimals = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const rateDecimals = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
 
 const asNumber = (amount: number | bigint) => (typeof amount === "bigint" ? Number(amount) / 100 : amount);
 
@@ -61,6 +60,10 @@ export const formatBs = (amount: number | bigint) => {
   return `${value < 0 ? "-" : ""}Bs. ${twoDecimals.format(Math.abs(value))}`;
 };
 
-/** "233,0456". Takes the rate as stored (number) or scaled (bigint). */
+/**
+ * "233,05": the rate as the screens show it, with 2 decimals. Takes the rate
+ * as stored (number) or scaled (bigint). Conversions still use the BCV's
+ * full figure (up to 8 decimals), as the database does.
+ */
 export const formatRate = (rate: number | bigint) =>
-  rateDecimals.format(typeof rate === "bigint" ? Number(rate) / 1e8 : rate);
+  twoDecimals.format(typeof rate === "bigint" ? Number(rate) / 1e8 : rate);

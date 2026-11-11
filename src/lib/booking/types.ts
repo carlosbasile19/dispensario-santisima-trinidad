@@ -48,10 +48,11 @@ export type BookingRequest = {
   documentNumber: string;
   notes?: string;
   /**
-   * The answer to "receive the confirmation and a reminder by WhatsApp",
-   * when the form offered it. Recorded on the patient's record.
+   * The form's one checkbox, required to book: the clinic keeps these
+   * details to look after the visit and writes by WhatsApp (confirmation,
+   * reminder and lab results). Recorded on the patient's record.
    */
-  whatsapp?: boolean;
+  consent: boolean;
   /** Only for a patient the centre does not know yet. */
   firstName?: string;
   lastName?: string;
@@ -77,4 +78,4 @@ export type BookedVisit = {
 export type BookingResult =
   | { status: "booked"; visit: BookedVisit }
   | { status: "needs_details"; message: string }
-  | { status: "error"; message: string; reason?: "slot_taken" | "document" | "phone" | "email" | "closed" };
+  | { status: "error"; message: string; reason?: "slot_taken" | "document" | "phone" | "email" | "consent" | "closed" };

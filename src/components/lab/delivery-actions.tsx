@@ -8,9 +8,11 @@ import { Icon } from "@/components/crm/icons";
 
 // "Entregar resultados": print the boleta, download the PDF, or send it by
 // WhatsApp. From the clinic's number when everything is in place (number
-// connected, template approved, patient's consent); otherwise from this
-// device's share sheet, which on a phone offers WhatsApp with the PDF
-// attached, or the patient's chat plus the downloaded file on a computer.
+// connected, template approved, patient's consent), with the PDF locked with
+// the patient's key; it already goes out on its own when the report is
+// validated, so here it is sent again. Otherwise from this device's share
+// sheet, which on a phone offers WhatsApp with the PDF attached, or the
+// patient's chat plus the downloaded file on a computer.
 
 type Props = {
   id: string;
@@ -20,7 +22,9 @@ type Props = {
   /** Digits of the patient's mobile for wa.me, if any. */
   phoneDigits: string | null;
   message: string;
-  whatsApp: { ready: true; phone: string } | { ready: false; reason: string; fixable?: "patient" | "settings" };
+  whatsApp: { ready: true; phone: string; keyLabel: string } | { ready: false; reason: string; fixable?: "patient" | "settings" };
+  /** This revision already went out from the clinic's number. */
+  sentBefore: boolean;
   patientHref: string;
   canConfigure: boolean;
 };
@@ -121,7 +125,7 @@ export function DeliveryActions(props: Props) {
           <p className="font-medium">WhatsApp</p>
           <p className="text-[13px] text-muted">
             {props.whatsApp.ready
-              ? `Desde el número del centro, con el PDF adjunto, al ${props.whatsApp.phone}.`
+              ? `Desde el número del centro al ${props.whatsApp.phone}. El PDF va protegido: se abre con ${props.whatsApp.keyLabel}.`
               : canShareFiles
                 ? "Comparte el PDF desde este teléfono y elige WhatsApp."
                 : "Abre el chat del paciente y adjunta el PDF descargado."}
@@ -132,7 +136,7 @@ export function DeliveryActions(props: Props) {
             <ActionForm action={sendLabReportWhatsApp} className="flex flex-col gap-2">
               <input type="hidden" name="report" value={props.id} />
               <SubmitButton icon="send" pendingLabel="Enviando…">
-                Enviar por WhatsApp
+                {props.sentBefore ? "Reenviar por WhatsApp" : "Enviar por WhatsApp"}
               </SubmitButton>
             </ActionForm>
           ) : null}

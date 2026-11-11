@@ -35,7 +35,7 @@ const EMPTY: DetailsValues = {
   lastName: "",
   email: "",
   phone: "",
-  whatsapp: true,
+  consent: false,
 };
 
 const firstDayOf = (service: BookingService | undefined) =>
@@ -43,16 +43,7 @@ const firstDayOf = (service: BookingService | undefined) =>
 
 const isDesktop = () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
 
-export function BookingFlow({
-  calendar,
-  initialServiceId,
-  offersWhatsApp = false,
-}: {
-  calendar: BookingCalendar;
-  initialServiceId?: string;
-  /** The clinic's WhatsApp is connected: the form offers the confirmation by WhatsApp. */
-  offersWhatsApp?: boolean;
-}) {
+export function BookingFlow({ calendar, initialServiceId }: { calendar: BookingCalendar; initialServiceId?: string }) {
   const router = useRouter();
   const { services, today } = calendar;
   const lastDay = shiftDay(today, calendar.horizonDays);
@@ -155,6 +146,9 @@ export function BookingFlow({
     if (askDetails && !EMAIL.test(values.email.trim())) {
       return setProblem({ field: "email", message: "Escribe un correo electrónico válido." });
     }
+    if (!values.consent) {
+      return setProblem({ field: "consent", message: "Para agendar, marca la casilla: aceptas el uso de los datos y los mensajes por WhatsApp." });
+    }
 
     setProblem(null);
     startTransition(async () => {
@@ -166,7 +160,7 @@ export function BookingFlow({
         documentType: values.documentType,
         documentNumber: cleanDocument(values.documentType, values.document),
         notes: values.notes,
-        whatsapp: offersWhatsApp ? values.whatsapp : undefined,
+        consent: values.consent,
         firstName: askDetails ? values.firstName : undefined,
         lastName: askDetails ? values.lastName : undefined,
         email: askDetails ? values.email : undefined,
@@ -187,7 +181,10 @@ export function BookingFlow({
         scrollToTop();
         router.refresh();
       } else {
-        const field = result.reason === "document" || result.reason === "phone" || result.reason === "email" ? result.reason : undefined;
+        const field =
+          result.reason === "document" || result.reason === "phone" || result.reason === "email" || result.reason === "consent"
+            ? result.reason
+            : undefined;
         setProblem({ message: result.message, field });
       }
     });
@@ -292,7 +289,6 @@ export function BookingFlow({
                 onSubmit={submit}
                 onBack={backToPick}
                 summary={summary}
-                offersWhatsApp={offersWhatsApp}
               />
             )}
 

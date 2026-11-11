@@ -76,18 +76,6 @@ export const getBookingCalendar = cache(async (slug: string): Promise<BookingCal
   return parseCalendar(data);
 });
 
-/**
- * Whether the booking form offers "receive the confirmation by WhatsApp":
- * the clinic's number is connected and confirmations are switched on.
- */
-export const bookingOffersWhatsApp = cache(async (): Promise<boolean> => {
-  await io();
-  const admin = createAdminClient();
-  if (!admin) return false;
-  const { data } = await admin.from("whatsapp_settings").select("connected, send_confirmations").maybeSingle();
-  return Boolean(data?.connected && data.send_confirmations);
-});
-
 /** The calendars taking bookings, for /agendar. */
 export const getBookingDirectory = cache(async (): Promise<DirectoryEntry[] | Unavailable> => {
   await io();

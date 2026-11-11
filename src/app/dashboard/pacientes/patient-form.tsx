@@ -31,7 +31,7 @@ const DOCUMENT_OPTIONS = [
 ];
 
 const WHATSAPP_OPTIONS = [
-  { value: "yes", label: "Acepta", description: "Confirmación y recordatorio de sus citas", icon: "chat" as const },
+  { value: "yes", label: "Acepta", description: "Sus citas y sus resultados de laboratorio", icon: "chat" as const },
   { value: "no", label: "No acepta", description: "No se le envían mensajes" },
   { value: "", label: "Sin preguntar" },
 ];
@@ -129,7 +129,7 @@ export function PatientForm({
 
       <Field
         label="Mensajes por WhatsApp"
-        hint="Pregúntale si quiere recibir en su celular la confirmación y el recordatorio de sus citas."
+        hint="Pregúntale si acepta recibir en su celular la confirmación y el recordatorio de sus citas, y sus resultados de laboratorio."
       >
         <Select
           name="whatsapp_consent"
