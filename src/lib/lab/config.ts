@@ -3,10 +3,15 @@
 
 import { ADDRESS_SHORT, LEGAL_NAME, RIF } from "@/lib/site-config";
 
+// The laboratory is a service of the Centro Médico Integral, so documents
+// name the clinic first and the laboratory under it, never the other way.
 export const LAB_INFO = {
-  /** Heading of the boleta. */
+  /** The service, printed under the clinic's name. */
   name: "Laboratorio Clínico",
-  /** "C. M. Santísima Trinidad, C. A." as printed under it. */
+  /** The clinic's name on the boleta's header, split as the logo sets it. */
+  clinicKind: "Centro Médico Integral",
+  clinicName: "Santísima Trinidad",
+  /** The company, "C. M. Santísima Trinidad, C. A.". */
   clinic: "C. M. Santísima Trinidad, C. A.",
   legalName: LEGAL_NAME,
   rif: RIF,

@@ -55,7 +55,8 @@ export function RateForm({
   const input = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(!current);
   const official = current?.official_bs_per_usd ?? null;
-  const differs = current?.source === "manual" && official !== null && official !== current.bs_per_usd;
+  // Compared as shown (2 decimals): a typed 233,05 matches a published 233,0456.
+  const differs = current?.source === "manual" && official !== null && formatRate(official) !== formatRate(current.bs_per_usd);
 
   return (
     <div className="flex flex-col gap-4">
@@ -120,7 +121,7 @@ export function RateForm({
                 step="any"
                 min="0"
                 required
-                placeholder={current ? String(current.bs_per_usd) : suggestion ? String(suggestion) : "0.00"}
+                placeholder={current ? current.bs_per_usd.toFixed(2) : suggestion ? suggestion.toFixed(2) : "0.00"}
                 className={`${inputClass} font-mono`}
               />
             </label>

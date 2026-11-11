@@ -360,11 +360,16 @@ export type Database = {
       }
       lab_report_deliveries: {
         Row: {
+          automatic: boolean
           channel: string
           created_at: string
           created_by: string | null
+          delivered_at: string | null
           error: string | null
+          error_code: string | null
+          failed_at: string | null
           id: string
+          read_at: string | null
           report_id: string
           revision: number
           status: string
@@ -372,11 +377,16 @@ export type Database = {
           wamid: string | null
         }
         Insert: {
+          automatic?: boolean
           channel: string
           created_at?: string
           created_by?: string | null
+          delivered_at?: string | null
           error?: string | null
+          error_code?: string | null
+          failed_at?: string | null
           id?: string
+          read_at?: string | null
           report_id: string
           revision?: number
           status?: string
@@ -384,11 +394,16 @@ export type Database = {
           wamid?: string | null
         }
         Update: {
+          automatic?: boolean
           channel?: string
           created_at?: string
           created_by?: string | null
+          delivered_at?: string | null
           error?: string | null
+          error_code?: string | null
+          failed_at?: string | null
           id?: string
+          read_at?: string | null
           report_id?: string
           revision?: number
           status?: string
@@ -604,6 +619,7 @@ export type Database = {
           signer_id_number: string | null
           signer_name: string
           signer_registry: string | null
+          signer_signature: string | null
           signer_title: string
           updated_at: string
           updated_by: string | null
@@ -614,6 +630,7 @@ export type Database = {
           signer_id_number?: string | null
           signer_name: string
           signer_registry?: string | null
+          signer_signature?: string | null
           signer_title?: string
           updated_at?: string
           updated_by?: string | null
@@ -624,6 +641,7 @@ export type Database = {
           signer_id_number?: string | null
           signer_name?: string
           signer_registry?: string | null
+          signer_signature?: string | null
           signer_title?: string
           updated_at?: string
           updated_by?: string | null
@@ -1088,6 +1106,7 @@ export type Database = {
           phone: string | null
           send_confirmations: boolean
           send_doctor_alerts: boolean
+          send_lab_results: boolean
           send_reminders: boolean
           updated_at: string
           zernio_account_id: string | null
@@ -1102,6 +1121,7 @@ export type Database = {
           phone?: string | null
           send_confirmations?: boolean
           send_doctor_alerts?: boolean
+          send_lab_results?: boolean
           send_reminders?: boolean
           updated_at?: string
           zernio_account_id?: string | null
@@ -1116,6 +1136,7 @@ export type Database = {
           phone?: string | null
           send_confirmations?: boolean
           send_doctor_alerts?: boolean
+          send_lab_results?: boolean
           send_reminders?: boolean
           updated_at?: string
           zernio_account_id?: string | null

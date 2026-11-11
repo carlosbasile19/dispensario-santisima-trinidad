@@ -6,7 +6,9 @@
 // they are waiting for, with no promotion, which is what Meta's utility
 // category allows. They never carry the patient's cédula (Meta's policy
 // forbids sending ID numbers) nor the service or a result, which could say
-// more than the patient wants: lab results travel only inside the PDF.
+// more than the patient wants: lab results travel only inside the PDF,
+// which is locked. The message says which key opens it ("tu número de
+// cédula"), never the key itself.
 //
 // The doctors' alert is the exception: it goes to the professional who will
 // see the patient, so it names the patient and the services booked with them,
@@ -86,16 +88,20 @@ export const TEMPLATES: Record<TemplateKind, TemplateDefinition> = {
       "¿Nos confirmas que asistirás?",
     ),
   },
+  // Replaces "resultados_laboratorio" (never approved): the PDF now travels
+  // locked, so the message has to say which key opens it.
   lab_results: {
-    name: "resultados_laboratorio",
+    name: "resultados_laboratorio_clave",
     label: "Resultados de laboratorio",
-    description: "Lleva el PDF del informe validado, cuando se envía desde Laboratorio.",
+    description: "Lleva el PDF del informe validado, protegido con una clave que el paciente conoce. Sale al validar el informe, o a mano desde Laboratorio.",
     document: true,
     buttons: false,
     body: lines(
       "Hola, {{1}}. Tus resultados de laboratorio de la muestra del {{2}} están listos: te los enviamos en el PDF adjunto.",
       "",
-      `Los validó {{3}}, bioanalista del ${LEGAL_NAME}.`,
+      "Para abrirlo, la clave es {{3}}.",
+      "",
+      `Los validó {{4}}, bioanalista del ${LEGAL_NAME}.`,
       "",
       "Llévalos a tu médico para que los interprete en tu próxima consulta.",
     ),
@@ -151,15 +157,30 @@ export function templateComponents(kind: TemplateKind, { samplePdfUrl }: { sampl
   ];
 }
 
-const LAB_EXAMPLE = ["Ana", "martes, 18 de noviembre", "el Lcdo. Heriberto M. Arteaga R."];
+const LAB_EXAMPLE = ["Ana", "martes, 18 de noviembre", "tu número de cédula, solo los números", "el Lcdo. Heriberto M. Arteaga R."];
 
-/** {{1}} first name, {{2}} day of the sample, {{3}} the bioanalyst who validated the report. */
-export function labResultsParams({ firstName, sampledDay, signer }: { firstName: string; sampledDay: string; signer: string }) {
+/**
+ * {{1}} first name, {{2}} day of the sample, {{3}} which key opens the PDF
+ * ("tu número de cédula, solo los números": never the key itself), {{4}}
+ * the bioanalyst who validated the report.
+ */
+export function labResultsParams({
+  firstName,
+  sampledDay,
+  keyHint,
+  signer,
+}: {
+  firstName: string;
+  sampledDay: string;
+  keyHint: string;
+  signer: string;
+}) {
   const name = signer.trim();
   const article = /^(Lcda|Dra)\b/i.test(name) ? "la" : "el";
   return [
     clean(firstName.split(" ")[0] || firstName, 40) || "paciente",
     clean(formatDay(sampledDay, "long")),
+    clean(keyHint, 120),
     clean(`${article} ${name}`, 80),
   ];
 }

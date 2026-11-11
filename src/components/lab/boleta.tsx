@@ -244,9 +244,12 @@ function Header({ report, page, pages }: { report: BoletaReport; page: number; p
         <div className="flex items-center gap-2.5">
           <Image src={mark} alt="" className="h-[46px] w-auto" sizes="40px" />
           <div className="leading-tight">
-            <p className="font-serif text-[15px] font-semibold">{LAB_INFO.name}</p>
-            <p className="text-[9.5px] font-semibold tracking-[0.04em] uppercase">C. M. Santísima Trinidad</p>
-            <p className="text-[9px]">C. A. · RIF {LAB_INFO.rif}</p>
+            {/* The clinic first: the laboratory is one of its services. */}
+            <p className="text-[9.5px] font-semibold tracking-[0.04em] uppercase">{LAB_INFO.clinicKind}</p>
+            <p className="font-serif text-[15px] font-semibold">{LAB_INFO.clinicName}, C. A.</p>
+            <p className="text-[9px]">
+              {LAB_INFO.name} · RIF {LAB_INFO.rif}
+            </p>
           </div>
         </div>
         <div className="pt-1 text-center">
@@ -338,13 +341,14 @@ export function Portada({ report }: { report: BoletaReport }) {
   return (
     <section className="flex h-full flex-col items-center px-[0.6in] pt-[0.4in] pb-[0.3in] text-center text-black">
       <div className="flex w-full items-start justify-between text-[11px]">
-        <span className="tracking-[0.12em] uppercase">{LAB_INFO.name}</span>
+        <span className="tracking-[0.12em] uppercase">{LAB_INFO.clinic}</span>
         <span>Fecha: {dayShort(stampDay(report.printedAt))}</span>
       </div>
       <div className="mt-3">
         <BioanalisisLogo size="sm" />
       </div>
-      <p className="mt-3 font-serif text-[24px] italic">C. M. Santísima Trinidad, C. A.</p>
+      <p className="mt-3 font-serif text-[24px] italic">{LAB_INFO.legalName}</p>
+      <p className="mt-1 text-[10px] tracking-[0.14em] uppercase">{LAB_INFO.name}</p>
       <p className="mt-4 text-[10px] tracking-[0.14em] uppercase">Paciente</p>
       <p className="mt-1 text-[18px] font-semibold uppercase">{fullName(report.patient)}</p>
       <p className="mt-1 font-mono text-[11px]">Nº {reportNumber(report.number)}</p>

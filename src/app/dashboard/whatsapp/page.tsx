@@ -286,6 +286,12 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
               label="Aviso al médico al agendar"
               description="En cuanto se agenda una cita, en línea o en recepción, al WhatsApp de cada médico de la cita que tenga número."
             />
+            <Switch
+              name="send_lab_results"
+              defaultChecked={settings?.send_lab_results ?? true}
+              label="Resultados de laboratorio al validar"
+              description="En cuanto el laboratorio valida un informe, su PDF sale al WhatsApp del paciente, protegido con su cédula (o su pasaporte, o su fecha de nacimiento si no tiene documento). Pausado, se envía a mano desde el informe."
+            />
             <div>
               <SubmitButton size="sm" variant="secondary" pendingLabel="Guardando…">
                 Guardar
@@ -338,8 +344,16 @@ async function WhatsAppSettings({ searchParams }: { searchParams: PageProps<"/da
               Cuando el paciente toca <strong>Confirmar asistencia</strong> o <strong>Cancelar cita</strong>, la Agenda se actualiza
               sola. <strong>Reprogramar</strong> queda para recepción, que lo ve en el chat.
             </li>
-            <li>Solo reciben mensajes los pacientes que aceptaron WhatsApp: al reservar en línea o en su ficha.</li>
+            <li>
+              Solo reciben mensajes los pacientes que aceptaron WhatsApp: al reservar en línea (la casilla es obligatoria para agendar)
+              o en su ficha.
+            </li>
             <li>A los pacientes nunca se les envía la cédula ni el servicio de la cita.</li>
+            <li>
+              Los <strong>resultados de laboratorio</strong> salen al validar el informe, en un PDF protegido: se abre con la cédula del
+              paciente, su pasaporte o, si no tiene documento, su fecha de nacimiento (DDMMAAAA). El mensaje dice cuál es la clave, nunca
+              la clave misma. En el informe se ve si llegó y si lo leyó.
+            </li>
             <li>
               Cada médico con número recibe un <strong>aviso</strong> en cuanto se le agenda una cita: el paciente, el día, la hora y el
               servicio, nunca la cédula ni el teléfono. El aviso también aparece en la app de recepción, en el chat con el médico, y si

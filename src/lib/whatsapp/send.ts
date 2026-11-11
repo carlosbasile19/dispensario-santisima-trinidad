@@ -351,6 +351,7 @@ export async function runReminderJob() {
   await Promise.all([
     admin.from("whatsapp_messages").update(interrupted).eq("status", "sending").lt("created_at", stuckBefore),
     admin.from("whatsapp_doctor_alerts").update(interrupted).eq("status", "sending").lt("created_at", stuckBefore),
+    admin.from("lab_report_deliveries").update(interrupted).eq("channel", "whatsapp").eq("status", "sending").lt("created_at", stuckBefore),
   ]);
 
   // Normally sent seconds after the booking; this catches any the booking could not send.

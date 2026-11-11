@@ -47,6 +47,11 @@ const MESSAGES: Record<string, BookingResult> = {
   invalid_document: { status: "error", reason: "document", message: DOCUMENT_HELP },
   invalid_phone: { status: "error", reason: "phone", message: PHONE_HELP },
   invalid_email: { status: "error", reason: "email", message: "Revisa el correo electrónico." },
+  no_consent: {
+    status: "error",
+    reason: "consent",
+    message: "Para agendar, marca la casilla: aceptas el uso de los datos y los mensajes por WhatsApp.",
+  },
   invalid: { status: "error", message: "Revisa los datos e inténtalo de nuevo." },
 };
 
@@ -93,6 +98,8 @@ export async function bookOnline(request: BookingRequest): Promise<BookingResult
   if (email && !EMAIL.test(email)) return MESSAGES.invalid_email;
   if (phone && !isBookingPhone(normalizePhone(phone))) return MESSAGES.invalid_phone;
   const notes = typeof request.notes === "string" ? request.notes.trim().slice(0, 1000) : "";
+  // The form's one checkbox is required: no booking without it.
+  if (request.consent !== true) return MESSAGES.no_consent;
 
   const secret = process.env.SUPABASE_SECRET_KEY;
   const admin = createAdminClient();
@@ -126,15 +133,13 @@ export async function bookOnline(request: BookingRequest): Promise<BookingResult
   const answer = data as Record<string, unknown>;
   if (answer.status === "booked") {
     // After the response, so the patient never waits on WhatsApp: the alert
-    // to the calendar's doctor and, when the form offered WhatsApp, the
-    // patient's answer and their confirmation.
-    const optIn = request.whatsapp;
+    // to the calendar's doctor, the consent on the patient's record and, when
+    // the clinic's number is connected, their confirmation.
     const documentNumber = cleanDocument(documentType, typed);
     after(() =>
-      Promise.all([
-        deliverDoctorAlerts(),
-        typeof optIn === "boolean" ? afterOnlineBooking({ documentType, documentNumber, day, time, optIn }) : null,
-      ]).then(() => undefined),
+      Promise.all([deliverDoctorAlerts(), afterOnlineBooking({ documentType, documentNumber, day, time, optIn: true })]).then(
+        () => undefined,
+      ),
     );
     const visit = parseVisit(answer);
     return visit ? { status: "booked", visit } : { status: "error", message: GENERIC };

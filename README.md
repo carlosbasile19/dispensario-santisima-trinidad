@@ -90,7 +90,7 @@ supabase/
 - **Patients** are registered by the front desk (`staff`) and administrators, from Pacientes or straight from "Nueva cita". Doctors see only patients they have a service with.
 - **Appointments** are one visit of one patient. A visit carries one or more services (`appointment_items`), each with its own professional (a member with the `doctor` or `director` role) and price, so one visit can have a consultation, a lab test and a dental cleaning with three different people. Doctors see the visits where they have a service.
 - **Prices** are the centre's, in US dollars, set by administrators in Contabilidad › Tarifas (`services`). A booked service copies that price (`list_price_usd`); the front desk may charge another one (`price_usd`) and the original stays on record. Changing a price affects new bookings only.
-- **BCV rate.** One rate per day (`exchange_rates`, Bs per dollar, 8 decimals), fetched automatically:
+- **BCV rate.** One rate per day (`exchange_rates`, Bs per dollar, stored with the BCV's 8 decimals and shown with 2; conversions use the full figure), fetched automatically:
   - The BCV publishes each afternoon the rate of its next business day, its *fecha valor*: Friday's publication is Monday's rate. Weekends and holidays have no rate of their own and use the last fecha valor before them.
   - `lib/bcv/sync.ts` reads bcv.org.ve and records the published day and today, plus tomorrow when it is a Saturday or Sunday (`record_official_rate`, service role only). If the BCV site fails it uses the [DolarAPI](https://ve.dolarapi.com) mirror, which keeps the BCV history by fecha valor (`source` = `bcv` or `dolarapi`).
   - bcv.org.ve serves an incomplete certificate chain, so the missing Sectigo intermediate is bundled in `lib/bcv/sectigo-r36.ts`. TLS verification stays on.
@@ -137,6 +137,7 @@ Each professional (a member with the `doctor` or `director` role) can have one b
   - **Autosave.** The draft saves itself a moment after typing stops. If another member saved in between, nothing is overwritten (`updated_at` check).
   4. **Revisar y validar** shows what will be signed: results, out-of-range values, empty tests (left out of the report) and the signer. `finalize_lab_report` then locks the report and copies in the patient's data and the signer. Each validated version is kept in `lab_report_versions`. **Corregir** reopens it as revision 2 with a reason, and the new documents say they replace the earlier one.
 - **The signer** is one row, `lab_settings`, seeded with Lcdo. Heriberto M. Arteaga R. (C.I. 11.171.135, M.S.A.S. 9577, Colegio 05-451). Administrators change it at the bottom of Laboratorio. A validated report keeps the signer it was signed with.
+- **The signature image.** Administrators can also upload the signer's handwritten signature (PNG or JPG, up to 1 MB) there. It is stored in the private bucket `lab-signatures`, and `lab_settings.signer_signature` holds its path. Only the PDF draws it: the copy sent by WhatsApp and the one members download. It goes only on validated reports signed by the bioanalyst in `lab_settings`. The printed boleta keeps an empty line, because it is signed by hand.
 - **Catalog.** Tests, units, reference values and usual answers live in `src/lib/lab/catalog.ts`, taken from the clinic's workbooks. A report copies a test's unit and reference rules when the test is added, so editing the catalog never changes an issued report.
 - **Two documents.**
   - **Boleta impresa** (`/imprimir/laboratorio/<id>`). The clinic's half-sheet slip: header, Nº de examen, the patient strip, one table per exam, the signature and the address box. Two slips go on a Letter or A4 sheet with "doblar aquí" marks, or one per page in Media carta.
@@ -150,13 +151,16 @@ Each professional (a member with the `doctor` or `director` role) can have one b
 - **Handing it out.** A validated report offers three ways:
   - Print the boleta.
   - Download the PDF.
-  - Send it by WhatsApp. The clinic's number sends the template `resultados_laboratorio` with the PDF as its document header.
-    - It needs the number connected, the template approved and the patient's WhatsApp consent.
+  - Send it by WhatsApp. The clinic's number sends the template `resultados_laboratorio_clave` with the PDF as its document header.
+    - **On its own when the report is validated.** `validateLabReport` calls `sendOnValidation` (`lib/lab/whatsapp.ts`) right after `finalize_lab_report`. It sends only if the "Resultados de laboratorio al validar" switch is on (`whatsapp_settings.send_lab_results`), everything below is in place, and this revision has not gone out by WhatsApp yet. A failed send leaves the report validated, with the error on its page and a button to retry. The validation dialog says beforehand whether it will go out, and to which number. A corrected revision goes out again when it is validated.
+    - It needs the number connected, the template approved, the patient's WhatsApp consent and a key for the PDF.
+    - **The PDF is locked** (AES-128, `lib/lab/pdf-key.ts`) with something the patient knows and a wrong recipient does not. That is the cédula (its digits), else the passport (in capitals), else the birth date as DDMMAAAA. A patient with none of them cannot get it by WhatsApp. The message says which key it is ("la clave es tu número de cédula, solo los números"), never the key itself. Members download, print and share the unlocked PDF.
     - The PDF is uploaded to the private bucket `lab-reports`, and Meta downloads it from a link signed for six hours. The daily WhatsApp job deletes those copies after two days.
-    - The message carries no result and no ID number: the first name, the day of the sample and who validated it.
+    - The message carries no result and no ID number: the first name, the day of the sample, which key opens the PDF and who validated it.
+    - **Tracking.** The webhook's statuses land on the delivery (`whatsapp_record_status`, by wamid): sent, delivered, read, or failed later on with Meta's code, shown in Spanish (`failureLabel`). The report page, the patient's page and the list show how far it got. The daily job marks a send cut off mid-way as interrupted.
     - Otherwise the member's phone shares the PDF straight to WhatsApp (Web Share), or a computer opens the patient's chat to attach the downloaded file.
   - Every print, download, share and send is logged in `lab_report_deliveries`, and the list shows what was delivered.
-- **Submitting the template.** The WhatsApp page now lists three templates. "Enviar a Meta para revisión" submits the new one too, with `public/laboratorio/informe-de-ejemplo.pdf` (a fictitious patient) as the sample Meta reviews. That file must be reachable at `NEXT_PUBLIC_SITE_URL` (the production domain).
+- **Submitting the template.** "Enviar a Meta para revisión" submits `resultados_laboratorio_clave` too, with `public/laboratorio/informe-de-ejemplo.pdf` (a fictitious patient) as the sample Meta reviews. That file must be reachable at `NEXT_PUBLIC_SITE_URL` (the production domain). It replaces `resultados_laboratorio`, which never got approved and is no longer used; its text did not say how to open a locked PDF.
 
 ## WhatsApp
 
@@ -174,7 +178,7 @@ Confirmations and reminders to patients, and alerts of new visits to doctors, go
   - Statuses arrive through the same webhook (`whatsapp_record_status` updates whichever table has the wamid). The visit's WhatsApp card shows them, without the number.
   - With Coexistence, each alert also appears in the front desk's app, in the chat with that doctor, and a doctor's reply lands there.
   - The "Aviso al médico al agendar" switch pauses them all.
-- **Who gets them.** Patients with `whatsapp_consent = true` and a mobile number (`whatsapp_reachable`). The online booking form asks with a checkbox when the number is connected, and the front desk records the answer in the patient form. There is one message per visit and time (`whatsapp_messages`, unique), and no message text is stored. The clinic's Zernio profile has zero content retention too.
+- **Who gets them.** Patients with `whatsapp_consent = true` and a mobile number (`whatsapp_reachable`). The online booking form has one checkbox, required to book: it accepts the use of the details and the WhatsApp messages (confirmation, reminder and lab results). `bookOnline` refuses a booking without it, and `whatsapp_queue_online_booking` records the consent. The front desk records the answer in the patient form. There is one message per visit and time (`whatsapp_messages`, unique), and no message text is stored. The clinic's Zernio profile has zero content retention too.
 - **Pieces.**
   - `lib/whatsapp/zernio.ts`: the API calls.
   - `send.ts`: queue (database functions `whatsapp_queue_*`) and send; each row is claimed before sending.

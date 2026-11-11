@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { Icon } from "@/components/crm/icons";
-import { bookingOffersWhatsApp, getBookingCalendar } from "@/lib/booking/data";
+import { getBookingCalendar } from "@/lib/booking/data";
 import type { BookingCalendar } from "@/lib/booking/types";
 import { isUuid, param } from "@/lib/crm/clinic";
 import { PHONE_DISPLAY, PHONE_TEL, WHATSAPP_URL } from "@/lib/site-config";
@@ -39,7 +39,7 @@ export default function BookingPage({ params, searchParams }: Props) {
 
 async function Booking({ params, searchParams }: Pick<Props, "params" | "searchParams">) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
-  const [calendar, offersWhatsApp] = await Promise.all([getBookingCalendar(slug), bookingOffersWhatsApp()]);
+  const calendar = await getBookingCalendar(slug);
   if (calendar === null) notFound();
   if (calendar === "unavailable") {
     return <Closed>La reserva en línea no está disponible en este momento.</Closed>;
@@ -52,9 +52,7 @@ async function Booking({ params, searchParams }: Pick<Props, "params" | "searchP
     );
   }
   const service = param(query.servicio);
-  return (
-    <BookingFlow calendar={calendar} initialServiceId={isUuid(service) ? service : undefined} offersWhatsApp={offersWhatsApp} />
-  );
+  return <BookingFlow calendar={calendar} initialServiceId={isUuid(service) ? service : undefined} />;
 }
 
 function Closed({ calendar, children }: { calendar?: BookingCalendar; children: React.ReactNode }) {

@@ -99,6 +99,7 @@ export async function saveWhatsAppSwitches(_prev: FormState, formData: FormData)
       send_confirmations: formData.get("send_confirmations") === "on",
       send_reminders: formData.get("send_reminders") === "on",
       send_doctor_alerts: formData.get("send_doctor_alerts") === "on",
+      send_lab_results: formData.get("send_lab_results") === "on",
     })
     .eq("id", true);
   if (error) return { error: dbErrorMessage(error) };
