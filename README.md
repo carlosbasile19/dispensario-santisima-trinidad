@@ -16,6 +16,7 @@ pnpm dev                        # http://localhost:3000
 | --- | --- |
 | `pnpm dev` / `build` / `start` | Next.js |
 | `pnpm lint` / `pnpm typecheck` | ESLint / route typegen + `tsc` |
+| `pnpm test` | Node tests, including isolated Postgres pagination and RLS fixtures |
 | `pnpm db:new <name>` | New SQL migration in `supabase/migrations/` |
 | `pnpm db:push` | Apply pending migrations to the linked Supabase project |
 | `pnpm db:types` | Regenerate `src/lib/supabase/database.types.ts` |
@@ -229,3 +230,49 @@ http://localhost:3000/**
 https://<production-domain>/**
 https://*-<vercel-team-slug>.vercel.app/**
 ```
+
+## Performance
+
+Apply `20261111142541_paginate_patient_and_lab_lists.sql` before deploying the new patient and laboratory pages. It adds three caller-authorized RPCs and indexes. The application expects those RPCs; they are tested against isolated Postgres fixtures, not automatically applied to the hosted database.
+
+Patients and reports show 50 records per page, with one extra row to detect the next page. Patient visit history has separate upcoming and past pages; its count and amount owed cover the full visible record. Search waits 350 ms after typing stops, preserves filters, and returns to page one. Laboratory search filters patients inside Postgres, so it can find a patient beyond the former 200-result lookup limit.
+
+The 31-item performance checklist is covered as follows. “Existing” means the app or platform already supplies it; it does not claim a measured production speedup.
+
+| # | Recommendation | Implementation or remaining scope |
+| --- | --- | --- |
+| 1 | Loading skeletons | Dashboard route/frame skeletons added; page-level Suspense skeletons retained. |
+| 2 | WebP / AVIF | Both formats enabled. Supabase avatars are resized; legacy external images retain an unoptimized fallback. |
+| 3 | Deduplicate API calls | Lab reads use request-scoped React cache. Concurrent BCV requests share one in-flight sync. |
+| 4 | Debounce searches | Patient/report searches wait 350 ms and cancel pending timers on unmount. |
+| 5 | Paginate results | Patient directory, lab reports, and patient visit history now have bounded pages. Day-based agenda/accounting reads retain their existing limits. |
+| 6 | CDN assets | Existing Vercel static delivery; public routes no longer run session refresh. |
+| 7 | Queue slow work | Existing durable WhatsApp queues remain. Sends run four at a time per queue with atomic claims. Lab validation still waits for delivery to preserve its existing recovery path. |
+| 8 | Avoid N+1 reads | Existing joined patient/service reads retained; report search and patient filtering now run in one database request. |
+| 9 | Compression | Existing Next gzip retained; verified on the production server. Vercel manages edge compression. |
+| 10 | Redis caching | Not added. No measured shared read bottleneck warrants a new cache service; clinical reads stay fresh and scoped to the caller. |
+| 11 | Remove unused dependencies | Existing dependencies all have callers. OpenTelemetry peers and Speed Insights support monitoring; PGlite is test-only. |
+| 12 | External API deadlines | Server Supabase calls have 30-second deadlines. Zernio retains 20 seconds; BCV has total deadlines and cancellation, including its 9-second on-demand sync. |
+| 13 | Stream AI tokens | Not applicable: the app has no AI response endpoint. |
+| 14 | Optimistic UI | Existing draft edits/autosave and avatar previews retained. Payments, bookings and report validation wait for confirmation. |
+| 15 | Lazy-load images | Next Image lazy loading retained, including sized avatars. Hero image priority remains explicit. |
+| 16 | Parallel requests | Report counts and explicitly selected report lists load together. Reminder queues, doctor alerts and cleanup run concurrently. |
+| 17 | Query indexes | Migration adds unique ordering keys and indexes for report lists and patient history. |
+| 18 | OpenTelemetry | `src/instrumentation.ts` records spans lasting at least one second to runtime logs. Logs contain duration, operation and trace IDs, without URLs, query terms, span events or patient details. No external trace exporter is enabled. |
+| 19 | Server near database | `vercel.json` selects `fra1`, matching the existing Supabase `eu-central-1` database. Takes effect on deployment. |
+| 20 | Server/build rendering | Existing Server Components, static marketing pages and partial prerendering retained. |
+| 21 | Defer third-party scripts | Speed Insights loads after hydration with a deferred script on Vercel deployments. |
+| 22 | Split JavaScript | Existing route splitting plus on-demand lab catalog dialog, print preview and server PDF renderer. |
+| 23 | Limit long-list rendering | Pagination bounds the patient/report DOM. No virtualization dependency is needed for 50-row pages. |
+| 24 | Select required columns | Patient search returns only list fields; lab settings and deliveries use explicit projections. The lab RPC returns a table type for PostgREST joins, and the caller projects list fields. |
+| 25 | Connection pooling | Existing Supabase HTTP Data API; the app opens no direct Postgres connections. |
+| 26 | Avoid extra renders | Memoized/deferred print sheets; hidden desktop previews do not mount on phones. Search inputs do not rerender the page on every keystroke. |
+| 27 | Browser asset caching | Public `/images/*` cache for one day with background revalidation; hashed Next assets retain immutable caching. No cache headers were added to private records. |
+| 28 | Multiple instances | Existing Vercel Fluid Compute and elastic concurrency. No custom load balancer or extra paid infrastructure added. |
+| 29 | Self-host fonts | Existing `next/font` hosting and restricted font styles/weights retained. |
+| 30 | Real-user monitoring | Speed Insights component added to the existing Vercel project. URLs are reduced to route patterns; identifiers, searches and fragments are removed. Production collection must be checked after deployment. |
+| 31 | Mobile/slow-network testing | Repeatable headless smoke test uses a 390px viewport, 150 ms latency, 1.6 Mbps download and 4× CPU throttling. Authenticated clinical workflows still need an authorized test account. |
+
+On the shared VPS, run checks through `heavy`, one at a time. `heavy pnpm test` runs its test files sequentially and creates no production data. The SQL fixtures cover tied ordering, more than 200 matching patients, more than 100 visits, debt totals, RLS and anonymous access. A real database rollout still needs migration-history verification and a post-migration smoke test before production deployment.
+
+For monitoring, filter Vercel runtime logs for `"event":"slow_span"` and correlate `traceId`. Speed Insights supplies browser measurements once the deployment receives traffic. These are separate from the local smoke checks; local timings are not production benchmarks. See [Vercel Speed Insights configuration](https://vercel.com/docs/speed-insights/package) and [function region configuration](https://vercel.com/docs/functions/configuring-functions/region).

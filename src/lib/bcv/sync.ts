@@ -46,11 +46,13 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 type SyncDeps = {
   client?: SupabaseClient<Database> | null;
   today?: string;
-  bcv?: () => Promise<OfficialRate>;
-  history?: () => Promise<OfficialRate[]>;
+  signal?: AbortSignal;
+  bcv?: (signal?: AbortSignal) => Promise<OfficialRate>;
+  history?: (signal?: AbortSignal) => Promise<OfficialRate[]>;
 };
 
 export async function syncBcvRates(deps: SyncDeps = {}): Promise<SyncReport> {
+  const signal = deps.signal ?? AbortSignal.timeout(45_000);
   const today = deps.today ?? (await clinicToday());
   const report: SyncReport = { ok: false, today, published: null, recorded: [], errors: [] };
   const admin = deps.client === undefined ? createAdminClient() : deps.client;
@@ -64,7 +66,8 @@ export async function syncBcvRates(deps: SyncDeps = {}): Promise<SyncReport> {
   const { data: stored, error: readError } = await admin
     .from("exchange_rates")
     .select("rate_date, bs_per_usd, source, fecha_valor")
-    .gte("rate_date", addDays(today, -MAX_CARRY_DAYS - 5));
+    .gte("rate_date", addDays(today, -MAX_CARRY_DAYS - 5))
+    .abortSignal(signal);
   if (readError) {
     report.errors.push(`Could not read stored rates: ${readError.message}`);
     return report;
@@ -77,7 +80,7 @@ export async function syncBcvRates(deps: SyncDeps = {}): Promise<SyncReport> {
 
   let published: OfficialRate | null = null;
   try {
-    published = await (deps.bcv ?? readBcv)();
+    published = await (deps.bcv ?? readBcv)(signal);
     known.set(published.day, published);
   } catch (error) {
     report.errors.push(`BCV: ${message(error)}`);
@@ -97,9 +100,9 @@ export async function syncBcvRates(deps: SyncDeps = {}): Promise<SyncReport> {
 
   // The mirror fills in when the BCV failed, or when a day needs an older
   // fecha valor that was never stored (the job did not run that day).
-  if (!published || targets.some((day) => !rateFor(day))) {
+  if (!signal.aborted && (!published || targets.some((day) => !rateFor(day)))) {
     try {
-      const history = await (deps.history ?? readDolarApiHistory)();
+      const history = await (deps.history ?? readDolarApiHistory)(signal);
       for (const official of history) {
         if (official.day >= addDays(today, -MAX_CARRY_DAYS - 5) && !known.has(official.day)) known.set(official.day, official);
       }
@@ -109,7 +112,7 @@ export async function syncBcvRates(deps: SyncDeps = {}): Promise<SyncReport> {
     }
   }
 
-  if (!published) return report;
+  if (!published || signal.aborted) return report;
   report.published = { day: published.day, rate: formatRate(published.rate), source: published.source };
 
   // Guard against a misread page: compare with the fecha valor before it.
@@ -132,12 +135,13 @@ export async function syncBcvRates(deps: SyncDeps = {}): Promise<SyncReport> {
   }
 
   for (const [day, official] of [...plan].sort(([a], [b]) => a.localeCompare(b))) {
+    if (signal.aborted) break;
     const { data, error } = await admin.rpc("record_official_rate", {
       rate_day: day,
       bs_per_usd: asNumber(official.rate),
       rate_source: official.source,
       valid_since: official.day,
-    });
+    }).abortSignal(signal);
     if (error) report.errors.push(`Could not record ${day}: ${error.message}`);
     else report.recorded.push({ day, rate: formatRate(official.rate), source: official.source, fechaValor: official.day, result: data });
   }
@@ -147,6 +151,7 @@ export async function syncBcvRates(deps: SyncDeps = {}): Promise<SyncReport> {
 }
 
 let lastOnDemand = 0;
+let onDemand: Promise<boolean> | null = null;
 
 /**
  * Runs the sync when a page needs today's rate and it is missing, at most
@@ -154,9 +159,11 @@ let lastOnDemand = 0;
  * slow BCV never holds the page. Answers whether today's rate was recorded.
  */
 export async function syncTodayOnDemand() {
+  if (onDemand) return onDemand;
   if (!process.env.SUPABASE_SECRET_KEY || Date.now() - lastOnDemand < 3 * 60_000) return false;
   lastOnDemand = Date.now();
-  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 9_000));
-  const report = await Promise.race([syncBcvRates().catch(() => null), timeout]);
-  return Boolean(report?.ok);
+  onDemand = syncBcvRates({ signal: AbortSignal.timeout(9_000) })
+    .then((report) => report.ok, () => false)
+    .finally(() => { onDemand = null; });
+  return onDemand;
 }

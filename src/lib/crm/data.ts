@@ -5,6 +5,7 @@ import { syncTodayOnDemand } from "@/lib/bcv/sync";
 import { createClient } from "@/lib/supabase/server";
 import type { AppointmentStatus, ServiceArea } from "./clinic";
 import type { Role } from "./roles";
+import { PAGE_SIZE } from "./pagination";
 
 // Reads shared by the platform pages. Every query runs as the signed-in
 // member, so RLS decides what comes back: a doctor only gets their own
@@ -135,17 +136,29 @@ export async function getAppointment(id: string) {
   return data?.length ? sortItems(data)[0] : null;
 }
 
-/** A patient's visits, newest first. */
-export async function getPatientAppointments(patientId: string) {
+/** One page of a patient's upcoming or past visits. */
+export async function getPatientAppointments(patientId: string, today: string, upcoming: boolean, page: number) {
   const supabase = await createClient();
-  const { data } = await supabase
+  const offset = (page - 1) * PAGE_SIZE;
+  let query = supabase
     .from("appointments")
     .select(APPOINTMENT_FIELDS)
-    .eq("patient_id", patientId)
-    .order("starts_at", { ascending: false })
-    .limit(100)
+    .eq("patient_id", patientId);
+  query = upcoming ? query.gte("starts_on", today) : query.lt("starts_on", today);
+  const { data, error } = await query
+    .order("starts_at", { ascending: upcoming })
+    .order("id", { ascending: upcoming })
+    .range(offset, offset + PAGE_SIZE)
     .overrideTypes<Appointment[], { merge: false }>();
+  if (error) throw new Error("No se pudieron cargar las citas del paciente.");
   return sortItems(data ?? []);
+}
+
+export async function getPatientVisitSummary(patientId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("patient_visit_summary", { patient: patientId }).single();
+  if (error) throw new Error("No se pudo cargar el resumen del paciente.");
+  return data;
 }
 
 export type Balance = { total: number; paid: number; balance: number };

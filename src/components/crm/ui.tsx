@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 import { ROLE_INFO, type Role } from "@/lib/crm/roles";
+import { canOptimizeAvatar } from "@/lib/avatar-image";
 import { Icon, type IconName } from "./icons";
 
 // Building blocks of the admin platform. Same palette and type as the public
@@ -175,11 +177,10 @@ export function Avatar({
     .join("");
   const dims =
     size === "lg" ? "size-14 text-lg" : size === "sm" ? "size-7 text-[11px]" : size === "xs" ? "size-5 text-[9px]" : "size-9 text-[13px]";
+  const pixels = size === "lg" ? 56 : size === "sm" ? 28 : size === "xs" ? 20 : 36;
   if (src) {
     return (
-      // Small, already-sized photos from Supabase Storage: a plain <img> needs no remotePatterns.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt="" aria-hidden="true" className={`shrink-0 rounded-full bg-frost object-cover ${dims}`} />
+      <Image src={src} unoptimized={!canOptimizeAvatar(src)} alt="" aria-hidden="true" width={pixels} height={pixels} sizes={`${pixels}px`} className={`shrink-0 rounded-full bg-frost object-cover ${dims}`} />
     );
   }
   return (
@@ -221,12 +222,28 @@ export function Skeleton({ className = "w-24" }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`inline-block h-[0.85em] max-w-full animate-pulse rounded bg-sand align-middle ${className}`}
+      className={`inline-block h-[0.85em] max-w-full motion-safe:animate-pulse rounded bg-sand align-middle ${className}`}
     />
   );
 }
 
 const Busy = () => <span className="sr-only">Cargando…</span>;
+
+/** The dashboard frame while its page is waiting for the signed-in viewer. */
+export function PageSkeleton() {
+  return (
+    <div role="status" aria-label="Cargando página" aria-busy="true" className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3" aria-hidden="true">
+        <Skeleton className="w-24 text-xs" />
+        <Skeleton className="w-64 text-4xl" />
+        <Skeleton className="w-80 text-sm" />
+      </div>
+      <Card>
+        <RowsSkeleton rows={5} />
+      </Card>
+    </div>
+  );
+}
 
 /** Rows in place of a list or a table: two lines each, or one when `dense`. */
 export function RowsSkeleton({ rows = 3, dense = false }: { rows?: number; dense?: boolean }) {

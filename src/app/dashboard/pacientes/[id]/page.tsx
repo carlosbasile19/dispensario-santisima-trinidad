@@ -5,12 +5,14 @@ import { Suspense } from "react";
 
 import { AppointmentList } from "@/components/crm/appointment-list";
 import { Icon } from "@/components/crm/icons";
+import { Pagination } from "@/components/crm/pagination";
 import { Modal } from "@/components/crm/modal";
 import { Avatar, Badge, Card, CardHeader, EmptyState, PageHeader, RowsSkeleton, Skeleton } from "@/components/crm/ui";
-import { UNBILLED_STATUSES, ageOn, clinicToday, formatDay, formatDocument, isUuid, localDay, patientName } from "@/lib/crm/clinic";
-import { getBalances, getPatientAppointments, getProfessionals } from "@/lib/crm/data";
+import { ageOn, clinicToday, formatDay, formatDocument, isUuid, localDay, patientName } from "@/lib/crm/clinic";
+import { getBalances, getPatientAppointments, getPatientVisitSummary, getProfessionals } from "@/lib/crm/data";
 import { listLabReports } from "@/lib/lab/data";
 import { reportNumber } from "@/lib/lab/report";
+import { PAGE_SIZE, pageNumber } from "@/lib/crm/pagination";
 import { formatUsd } from "@/lib/crm/money";
 import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -32,11 +34,11 @@ type Params = PageProps<"/dashboard/pacientes/[id]">["params"];
 // who handle money, what they still owe. RLS hides patients a doctor has no
 // service with, so those land on not-found. All of it comes from the patient,
 // so the App Shell has only the frame of the cards; the record streams in.
-export default async function PatientPage({ params }: PageProps<"/dashboard/pacientes/[id]">) {
+export default async function PatientPage({ params, searchParams }: PageProps<"/dashboard/pacientes/[id]">) {
   const viewer = await getViewer();
   return (
     <Suspense fallback={<PatientSkeleton />}>
-      <Patient params={params} viewer={viewer} />
+      <Patient params={params} searchParams={searchParams} viewer={viewer} />
     </Suspense>
   );
 }
@@ -75,8 +77,8 @@ function PatientSkeleton() {
   );
 }
 
-async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
-  const { id } = await params;
+async function Patient({ params, searchParams, viewer }: { params: Params; searchParams: PageProps<"/dashboard/pacientes/[id]">["searchParams"]; viewer: Viewer }) {
+  const [{ id }, filters] = await Promise.all([params, searchParams]);
   if (!isUuid(id)) notFound();
 
   const supabase = await createClient();
@@ -90,20 +92,21 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
   const p = viewer.permissions;
   const money = p.collectPayments || p.accounting;
   const today = await clinicToday();
-  const [appointments, professionals, labReports] = await Promise.all([
-    getPatientAppointments(id),
+  const upcomingPage = pageNumber(filters.citas);
+  const pastPage = pageNumber(filters.historial);
+  const [upcomingRows, pastRows, professionals, labReports, summary] = await Promise.all([
+    getPatientAppointments(id, today, true, upcomingPage),
+    getPatientAppointments(id, today, false, pastPage),
     getProfessionals(),
-    listLabReports({ patientIds: [id], limit: 10 }),
+    listLabReports({ patientId: id, limit: 11 }),
+    getPatientVisitSummary(id),
   ]);
+  const upcoming = upcomingRows.slice(0, PAGE_SIZE);
+  const past = pastRows.slice(0, PAGE_SIZE);
+  const appointments = [...upcoming, ...past];
   const balances = money ? await getBalances(appointments.map((a) => a.id)) : undefined;
-  // What is owed for visits up to today; future visits are not due yet.
-  const owed = balances
-    ? appointments
-        .filter((a) => !UNBILLED_STATUSES.includes(a.status) && a.starts_on && a.starts_on <= today)
-        .reduce((sum, a) => sum + Math.max(0, balances.get(a.id)?.balance ?? 0), 0)
-    : 0;
-  const upcoming = appointments.filter((a) => a.starts_on && a.starts_on >= today).reverse();
-  const past = appointments.filter((a) => !a.starts_on || a.starts_on < today);
+  const owed = summary.owed_usd ?? 0;
+  const paginationFilters = { citas: upcomingPage > 1 ? String(upcomingPage) : "", historial: pastPage > 1 ? String(pastPage) : "" };
 
   const name = patientName(patient);
   const facts: [string, string][] = [
@@ -121,7 +124,7 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
       <PageHeader
         eyebrow="Pacientes"
         title={name}
-        description={`${appointments.length} ${appointments.length === 1 ? "cita" : "citas"}${money && owed > 0 ? ` · debe ${formatUsd(owed)}` : ""}`}
+        description={`${summary.appointments} ${summary.appointments === 1 ? "cita" : "citas"}${money && owed > 0 ? ` · debe ${formatUsd(owed)}` : ""}`}
         actions={
           <>
             {p.labReports && (
@@ -153,15 +156,20 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
             {upcoming.length ? (
               <AppointmentList appointments={upcoming} professionals={professionals.byId} balances={balances} showDate />
             ) : (
-              <p className="px-5 py-4 text-sm text-muted">No tiene citas agendadas.</p>
+              <p className="px-5 py-4 text-sm text-muted">{upcomingPage > 1 ? "No hay más citas en esta página." : "No tiene citas agendadas."}</p>
             )}
+            <Pagination path={`/dashboard/pacientes/${id}`} filters={paginationFilters} page={upcomingPage} pageKey="citas" hasNext={upcomingRows.length > PAGE_SIZE} />
           </Card>
           {(labReports.length > 0 || p.labReports) && (
             <Card>
-              <CardHeader title="Laboratorio" hint="Informes de resultados de este paciente" />
+              <CardHeader title="Laboratorio" hint="Informes de resultados de este paciente" action={
+                labReports.length > 10 ? (
+                  <Link href={`/dashboard/laboratorio?paciente=${id}&estado=todos`} className="text-sm font-medium text-teal hover:text-navy">Ver todos</Link>
+                ) : undefined
+              } />
               {labReports.length ? (
                 <ul className="divide-y divide-line">
-                  {labReports.map((r) => (
+                  {labReports.slice(0, 10).map((r) => (
                     <li key={r.id}>
                       <Link href={`/dashboard/laboratorio/${r.id}`} className="flex items-center gap-4 px-5 py-3 hover:bg-cream">
                         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-mint/25 text-[#135c62]">
@@ -193,10 +201,11 @@ async function Patient({ params, viewer }: { params: Params; viewer: Viewer }) {
             {past.length ? (
               <AppointmentList appointments={past} professionals={professionals.byId} balances={balances} showDate />
             ) : (
-              <EmptyState icon="calendar" title="Sin citas anteriores">
+              <EmptyState icon="calendar" title={pastPage > 1 ? "No hay más citas en esta página" : "Sin citas anteriores"}>
                 Aquí aparecerán sus visitas al centro.
               </EmptyState>
             )}
+            <Pagination path={`/dashboard/pacientes/${id}`} filters={paginationFilters} page={pastPage} pageKey="historial" hasNext={pastRows.length > PAGE_SIZE} />
           </Card>
         </div>
 

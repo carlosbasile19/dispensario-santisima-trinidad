@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import type { Database } from "./database.types";
+import { fetchWithTimeout } from "./fetch";
 
 /**
  * Supabase client with the project's secret key. It bypasses RLS and can
@@ -14,5 +15,6 @@ export function createAdminClient() {
   if (!secretKey) return null;
   return createClient<Database>(env.supabaseUrl, secretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: fetchWithTimeout },
   });
 }

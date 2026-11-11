@@ -3,17 +3,19 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { ActionForm, Field, SubmitButton } from "@/components/crm/forms";
+import { Pagination } from "@/components/crm/pagination";
+import { SearchForm } from "@/components/crm/search-form";
 import { Icon, type IconName } from "@/components/crm/icons";
 import { inputClass } from "@/components/crm/styles";
 import { Avatar, Badge, Card, CardHeader, EmptyState, FormSkeleton, PageHeader, RowsSkeleton, Skeleton, td, th } from "@/components/crm/ui";
-import { formatDay, localDay, param } from "@/lib/crm/clinic";
+import { formatDay, isUuid, localDay, param } from "@/lib/crm/clinic";
+import { PAGE_SIZE, pageHref, pageNumber } from "@/lib/crm/pagination";
 import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { countLabReports, getLabSettings, listLabReports } from "@/lib/lab/data";
 import { documentOf } from "@/lib/lab/format";
 import { reportNumber } from "@/lib/lab/report";
 import { SIGNATURE_BUCKET } from "@/lib/lab/signature";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { saveLabSettings } from "./actions";
 import { SignatureForm } from "./signature-form";
 
@@ -91,20 +93,22 @@ export default async function LabPage({ searchParams }: PageProps<"/dashboard/la
 async function Reports({ searchParams, viewer }: { searchParams: PageProps<"/dashboard/laboratorio">["searchParams"]; viewer: Viewer }) {
   const params = await searchParams;
   const query = param(params.q).trim().slice(0, 80);
-  const counts = await countLabReports();
+  const page = pageNumber(params.pagina);
+  const patientId = isUuid(param(params.paciente)) ? param(params.paciente) : undefined;
   const requested = param(params.estado) as Tab;
-  const tab: Tab = TABS.some((t) => t.key === requested) ? requested : viewer.permissions.labReports && counts.drafts ? "borradores" : "validados";
-  const status = TABS.find((t) => t.key === tab)?.status;
-
-  let patientIds: string[] | undefined;
-  if (query) {
-    const supabase = await createClient();
-    const { data } = await supabase.rpc("search_patients", { query, max_rows: 200 });
-    patientIds = (data ?? []).map((p) => p.id);
-  }
-  const reports = await listLabReports({ status, patientIds });
+  const explicitTab = TABS.find((t) => t.key === requested);
+  const listOptions = { patientId, search: query, limit: PAGE_SIZE + 1, offset: (page - 1) * PAGE_SIZE };
+  const [counts, requestedReports] = await Promise.all([
+    countLabReports(),
+    explicitTab ? listLabReports({ ...listOptions, status: explicitTab.status }) : Promise.resolve(null),
+  ]);
+  const tab: Tab = explicitTab?.key ?? (viewer.permissions.labReports && counts.drafts ? "borradores" : "validados");
+  const rows = requestedReports ?? await listLabReports({ ...listOptions, status: TABS.find((t) => t.key === tab)?.status });
+  const reports = rows.slice(0, PAGE_SIZE);
+  const hasNext = rows.length > PAGE_SIZE;
   const tabCount = { borradores: counts.drafts, validados: counts.finals, todos: counts.drafts + counts.finals };
-  const href = (key: Tab) => `/dashboard/laboratorio?estado=${key}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
+  const filters = { estado: tab, q: query, paciente: patientId ?? "" };
+  const href = (key: Tab) => pageHref("/dashboard/laboratorio", { ...filters, estado: key }, 1);
 
   return (
     <Card className="overflow-hidden">
@@ -122,20 +126,9 @@ async function Reports({ searchParams, viewer }: { searchParams: PageProps<"/das
             </Link>
           ))}
         </nav>
-        <form action="/dashboard/laboratorio" className="mb-3 flex w-full gap-2 sm:w-auto">
-          <input type="hidden" name="estado" value={tab} />
-          <input
-            type="search"
-            name="q"
-            defaultValue={query}
-            placeholder="Paciente o cédula"
-            aria-label="Buscar por paciente"
-            className="h-9 min-w-0 flex-1 rounded-lg border border-outline bg-white px-3 text-sm outline-none focus:border-navy sm:w-[240px] sm:flex-none"
-          />
-          <button type="submit" aria-label="Buscar" className="grid size-9 shrink-0 place-items-center rounded-lg border border-outline bg-white hover:border-navy pointer-coarse:size-11">
-            <Icon name="search" className="size-4" />
-          </button>
-        </form>
+        <div className="mb-3 w-full sm:w-auto">
+          <SearchForm path="/dashboard/laboratorio" query={query} filters={{ estado: tab, paciente: patientId ?? "" }} placeholder="Paciente o cédula" label="Buscar por paciente" />
+        </div>
       </div>
 
       {reports.length ? (
@@ -277,6 +270,7 @@ async function Reports({ searchParams, viewer }: { searchParams: PageProps<"/das
               : "Aquí aparecerán los informes cuando el laboratorio los prepare."}
         </EmptyState>
       )}
+      <Pagination path="/dashboard/laboratorio" filters={filters} page={page} hasNext={hasNext} />
     </Card>
   );
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { localDay, localTime } from "@/lib/crm/clinic";
 import { createClient } from "@/lib/supabase/server";
@@ -112,7 +113,7 @@ function toReport(row: Row): LabReport {
 }
 
 /** One report the member may see, or null. */
-export async function getLabReport(id: string) {
+export const getLabReport = cache(async (id: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("lab_reports")
@@ -120,15 +121,15 @@ export async function getLabReport(id: string) {
     .eq("id", id)
     .maybeSingle();
   return data ? toReport(data as unknown as Row) : null;
-}
+});
 
 export type LabSettings = Database["public"]["Tables"]["lab_settings"]["Row"];
 
-export async function getLabSettings(): Promise<LabSettings | null> {
+export const getLabSettings = cache(async (): Promise<LabSettings | null> => {
   const supabase = await createClient();
-  const { data } = await supabase.from("lab_settings").select("*").maybeSingle();
+  const { data } = await supabase.from("lab_settings").select("id, signer_name, signer_title, signer_id_number, signer_registry, signer_college, signer_signature, updated_at, updated_by").maybeSingle();
   return data;
-}
+});
 
 /** The signer as a validated report will carry it. */
 export const signerOf = (settings: LabSettings | null): ReportSigner | null =>
@@ -148,7 +149,7 @@ export async function getDeliveries(reportId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("lab_report_deliveries")
-    .select("*")
+    .select("id, report_id, revision, channel, status, created_at, created_by, automatic, delivered_at, error, error_code, failed_at, read_at, to_phone, wamid")
     .eq("report_id", reportId)
     .order("created_at", { ascending: false })
     .limit(30);
@@ -181,17 +182,21 @@ function whatsAppState(deliveries: { channel: string; status: string }[]): Repor
   return best < 0 ? null : WHATSAPP_RANK[best];
 }
 
-/** The latest reports, newest first, optionally only drafts or validated ones and of some patients. */
-export async function listLabReports({ status, patientIds, limit = 60 }: { status?: Status; patientIds?: string[]; limit?: number }) {
+/** A bounded page of reports, filtered before pagination and ordered by a unique pair. */
+export async function listLabReports({ status, patientId, search = "", limit = 50, offset = 0 }: {
+  status?: Status;
+  patientId?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
   const supabase = await createClient();
-  let query = supabase
-    .from("lab_reports")
-    .select("id, number, status, revision, summary, sampled_at, updated_at, finalized_at, patients(id, first_name, last_name, id_type, id_number), lab_report_deliveries(channel, status)")
-    .order("updated_at", { ascending: false })
-    .limit(limit);
-  if (status) query = query.eq("status", status);
-  if (patientIds) query = query.in("patient_id", patientIds.length ? patientIds : ["00000000-0000-0000-0000-000000000000"]);
-  const { data } = await query;
+  const { data, error } = await supabase
+    .rpc("search_lab_reports_page", {
+      query: search, report_status: status, patient: patientId, page_offset: offset, page_size: limit,
+    })
+    .select("id, number, status, revision, summary, sampled_at, updated_at, finalized_at, patients(id, first_name, last_name, id_type, id_number), lab_report_deliveries(channel, status)");
+  if (error) throw new Error("No se pudieron cargar los informes de laboratorio.");
   return (data ?? []).map(
     (row): ReportListItem => ({
       id: row.id,

@@ -1,3 +1,6 @@
+import Image from "next/image";
+import { canOptimizeAvatar } from "@/lib/avatar-image";
+
 // The professional's photo on the booking pages, or their initials in the
 // brand's frost tile when they have not uploaded one.
 
@@ -24,10 +27,9 @@ export function ProfessionalAvatar({
     .map((part) => part[0]?.toUpperCase())
     .join("");
   if (src) {
+    const pixels = size === "lg" ? 72 : size === "md" ? 56 : 44;
     return (
-      // Small, already-sized photos from Supabase Storage: a plain <img> needs no remotePatterns.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt="" className={`${SIZES[size]} shrink-0 rounded-full bg-frost object-cover ring-4 ring-white`} />
+      <Image src={src} unoptimized={!canOptimizeAvatar(src)} alt="" width={pixels} height={pixels} sizes={`${pixels}px`} className={`${SIZES[size]} shrink-0 rounded-full bg-frost object-cover ring-4 ring-white`} />
     );
   }
   return (

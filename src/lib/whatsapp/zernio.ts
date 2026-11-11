@@ -36,6 +36,7 @@ async function call<T>(
   for (const [key, value] of Object.entries(query ?? {})) if (value !== undefined) url.searchParams.set(key, value);
 
   let response: Response;
+  let text: string;
   try {
     response = await fetch(url, {
       method,
@@ -48,11 +49,11 @@ async function call<T>(
       cache: "no-store",
       signal: AbortSignal.timeout(20_000),
     });
+    text = await response.text();
   } catch (error) {
     throw new ZernioError(`Zernio no respondió (${error instanceof Error ? error.message : "error de red"})`, 0, "network", null);
   }
 
-  const text = await response.text();
   let data: unknown = null;
   try {
     data = text ? JSON.parse(text) : null;

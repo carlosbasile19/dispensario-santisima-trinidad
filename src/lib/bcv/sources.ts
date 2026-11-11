@@ -30,12 +30,13 @@ const MAX_BYTES = 2_000_000;
 const BCV_CA = [...tls.rootCertificates, SECTIGO_DV_R36];
 
 /** GET a page as text, verifying TLS (with extra trusted CAs when given). */
-function get(url: string, ca?: string[], redirects = 2): Promise<string> {
+function get(url: string, ca?: string[], redirects = 2, signal = AbortSignal.timeout(TIMEOUT_MS)): Promise<string> {
   return new Promise((resolve, reject) => {
     const request = https.get(
       url,
       {
         ca,
+        signal,
         timeout: TIMEOUT_MS,
         headers: {
           "user-agent": "Mozilla/5.0 (compatible; DispensarioSantisimaTrinidad/1.0; tasa BCV)",
@@ -46,7 +47,7 @@ function get(url: string, ca?: string[], redirects = 2): Promise<string> {
         const status = response.statusCode ?? 0;
         if (status >= 300 && status < 400 && response.headers.location && redirects > 0) {
           response.resume();
-          resolve(get(new URL(response.headers.location, url).toString(), ca, redirects - 1));
+          resolve(get(new URL(response.headers.location, url).toString(), ca, redirects - 1, signal));
           return;
         }
         if (status !== 200) {
@@ -91,14 +92,16 @@ export function parseBcvHomepage(html: string): Omit<OfficialRate, "source"> {
   return { day, rate };
 }
 
-export async function readBcv(): Promise<OfficialRate> {
-  const html = await get(BCV_URL, BCV_CA);
+export async function readBcv(signal?: AbortSignal): Promise<OfficialRate> {
+  const deadline = AbortSignal.timeout(TIMEOUT_MS);
+  const html = await get(BCV_URL, BCV_CA, 2, signal ? AbortSignal.any([signal, deadline]) : deadline);
   return { ...parseBcvHomepage(html), source: "bcv" };
 }
 
 /** The mirror's history, newest last: [{ day, rate }]. */
-export async function readDolarApiHistory(): Promise<OfficialRate[]> {
-  const body = JSON.parse(await get(DOLARAPI_HISTORY_URL)) as unknown;
+export async function readDolarApiHistory(signal?: AbortSignal): Promise<OfficialRate[]> {
+  const deadline = AbortSignal.timeout(TIMEOUT_MS);
+  const body = JSON.parse(await get(DOLARAPI_HISTORY_URL, undefined, 2, signal ? AbortSignal.any([signal, deadline]) : deadline)) as unknown;
   if (!Array.isArray(body)) throw new Error("Unexpected DolarAPI answer");
   const rates: OfficialRate[] = [];
   for (const row of body) {

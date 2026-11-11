@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import type { Database } from "./database.types";
+import { fetchWithTimeout } from "./fetch";
 
 /** Routes that require a signed-in user. The page itself re-checks (see src/lib/auth.ts). */
 const PROTECTED_PREFIXES = ["/dashboard", "/imprimir"];
@@ -23,6 +24,7 @@ export async function updateSession(request: NextRequest) {
     env.supabaseUrl,
     env.supabasePublishableKey,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         getAll() {
           return request.cookies.getAll();

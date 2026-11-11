@@ -1374,6 +1374,39 @@ export type Database = {
         }
         Returns: undefined
       }
+      patient_visit_summary: {
+        Args: { patient: string }
+        Returns: { appointments: number; owed_usd: number | null }[]
+      }
+      search_lab_reports_page: {
+        Args: {
+          query?: string
+          report_status?: Database["public"]["Enums"]["lab_report_status"]
+          patient?: string
+          page_offset?: number
+          page_size?: number
+        }
+        Returns: Database["public"]["Tables"]["lab_reports"]["Row"][]
+        SetofOptions: {
+          from: "*"
+          to: "lab_reports"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      search_patients_page: {
+        Args: { query?: string; page_offset?: number; page_size?: number }
+        Returns: {
+          id: string
+          first_name: string
+          last_name: string
+          id_type: string | null
+          id_number: string | null
+          birth_date: string | null
+          phone: string | null
+          created_at: string
+        }[]
+      }
       search_patients: {
         Args: { max_rows?: number; query?: string }
         Returns: {
