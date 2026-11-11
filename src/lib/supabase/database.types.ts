@@ -358,6 +358,76 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount_bs: number
+          amount_usd: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string
+          destination: string | null
+          id: string
+          method: string
+          rate: number
+          reference: string | null
+          spent_on: string
+          supplier_id: string | null
+        }
+        Insert: {
+          amount_bs: number
+          amount_usd: number
+          created_at?: string
+          created_by?: string | null
+          currency: string
+          description: string
+          destination?: string | null
+          id?: string
+          method: string
+          rate: number
+          reference?: string | null
+          spent_on: string
+          supplier_id?: string | null
+        }
+        Update: {
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string
+          destination?: string | null
+          id?: string
+          method?: string
+          rate?: number
+          reference?: string | null
+          spent_on?: string
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_spent_on_fkey"
+            columns: ["spent_on"]
+            isOneToOne: false
+            referencedRelation: "exchange_rates"
+            referencedColumns: ["rate_date"]
+          },
+          {
+            foreignKeyName: "expenses_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_report_deliveries: {
         Row: {
           automatic: boolean
@@ -876,6 +946,42 @@ export type Database = {
           id?: string
           name?: string
           price_usd?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          account_number: string | null
+          bank: string | null
+          created_at: string
+          document: string | null
+          id: string
+          name: string
+          notes: string | null
+          pago_movil_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          bank?: string | null
+          created_at?: string
+          document?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          pago_movil_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          bank?: string | null
+          created_at?: string
+          document?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          pago_movil_phone?: string | null
           updated_at?: string
         }
         Relationships: []
