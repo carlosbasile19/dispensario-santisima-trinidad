@@ -8,7 +8,6 @@ import { redirect } from "next/navigation";
 import { isUuid } from "@/lib/crm/clinic";
 import { dbErrorMessage, type FormState } from "@/lib/crm/form-state";
 import { getViewer } from "@/lib/crm/viewer";
-import { canDrawImage } from "@/lib/lab/pdf/render";
 import { imageFormat, SIGNATURE_BUCKET, SIGNATURE_MAX_BYTES } from "@/lib/lab/signature";
 import { sendLabResults, sendOnValidation } from "@/lib/lab/whatsapp";
 import { parseContent } from "@/lib/lab/report";
@@ -199,6 +198,7 @@ export async function uploadLabSignature(_prev: FormState, formData: FormData): 
   const data = Buffer.from(await file.arrayBuffer());
   const format = imageFormat(data);
   if (!format) return { error: "La firma debe ser una imagen PNG o JPG." };
+  const { canDrawImage } = await import("@/lib/lab/pdf/render");
   if (!(await canDrawImage({ data, format }))) return { error: "No se pudo leer esa imagen. Guárdala de nuevo como PNG e inténtalo otra vez." };
 
   const admin = createAdminClient();

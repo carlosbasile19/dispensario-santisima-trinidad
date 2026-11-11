@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useDeferredValue, useEffect, useRef, useState } from "react";
 
 import { Icon } from "@/components/crm/icons";
 import { BoletaPages, type BoletaReport } from "./boleta";
@@ -8,8 +8,9 @@ import { BoletaPages, type BoletaReport } from "./boleta";
 // The live preview beside the editor: the printed boleta, redrawn as results
 // are typed, or the branded PDF as it was last saved.
 
-export function PreviewPane({ report, pdfUrl, compact = false }: { report: BoletaReport; pdfUrl: string; compact?: boolean }) {
+export const PreviewPane = memo(function PreviewPane({ report, pdfUrl, compact = false }: { report: BoletaReport; pdfUrl: string; compact?: boolean }) {
   const [tab, setTab] = useState<"boleta" | "pdf">("boleta");
+  const deferredReport = useDeferredValue(report);
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
@@ -38,7 +39,10 @@ export function PreviewPane({ report, pdfUrl, compact = false }: { report: Bolet
         </a>
       </div>
       {tab === "boleta" ? (
-        <ScaledSheets report={report} />
+        <div aria-busy={deferredReport !== report} className={deferredReport !== report ? "opacity-70" : undefined}>
+          {deferredReport !== report && <span role="status" className="sr-only">Actualizando vista previa…</span>}
+          <ScaledSheets report={deferredReport} />
+        </div>
       ) : (
         <iframe
           key={pdfUrl}
@@ -49,10 +53,10 @@ export function PreviewPane({ report, pdfUrl, compact = false }: { report: Bolet
       )}
     </div>
   );
-}
+});
 
 /** The boleta's sheets scaled to the column's width. */
-function ScaledSheets({ report }: { report: BoletaReport }) {
+const ScaledSheets = memo(function ScaledSheets({ report }: { report: BoletaReport }) {
   const box = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
@@ -82,4 +86,4 @@ function ScaledSheets({ report }: { report: BoletaReport }) {
       </div>
     </div>
   );
-}
+});

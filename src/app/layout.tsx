@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
-import { ViewTransition } from "react";
+import { Suspense, ViewTransition } from "react";
 
 import { NavigationEffects } from "@/components/navigation-effects";
+import { PerformanceInsights } from "@/components/performance-insights";
 import "./globals.css";
 
 const instrumentSans = Instrument_Sans({
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {children}
         </ViewTransition>
         <NavigationEffects />
+        {process.env.VERCEL === "1" && <Suspense fallback={null}><PerformanceInsights /></Suspense>}
       </body>
     </html>
   );

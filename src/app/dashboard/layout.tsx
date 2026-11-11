@@ -7,7 +7,7 @@ import { signOut } from "@/app/(auth)/login/actions";
 import { Icon } from "@/components/crm/icons";
 import { PhoneNav, PhoneNavPlaceholder } from "@/components/crm/phone-nav";
 import { SidebarNav } from "@/components/crm/sidebar-nav";
-import { Avatar } from "@/components/crm/ui";
+import { Avatar, PageSkeleton } from "@/components/crm/ui";
 import { ROLE_INFO, navFor } from "@/lib/crm/roles";
 import { getViewer } from "@/lib/crm/viewer";
 import mark from "../../../public/images/brand/mark.png";
@@ -60,7 +60,7 @@ export default function DashboardLayout({ children }: LayoutProps<"/dashboard">)
 
       <div className="flex min-w-0 flex-1 flex-col">
         <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 pt-5 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-8 md:py-8 lg:py-10">
-          <Suspense fallback={<p className="text-sm text-muted">Cargando…</p>}>{children}</Suspense>
+          <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
         </main>
       </div>
 

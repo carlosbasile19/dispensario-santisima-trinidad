@@ -4,6 +4,7 @@ import { addDays, clinicToday } from "@/lib/crm/clinic";
 import { deleteOldWhatsAppPdfs } from "@/lib/lab/whatsapp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { zernioConfig } from "./config";
+import { drainOutbox } from "./outbox";
 import { doctorAlertParams, TEMPLATE_KINDS, TEMPLATE_LANGUAGE, TEMPLATES, templateParams, type MessageKind } from "./templates";
 import { listTemplates, sendTemplate, ZernioError } from "./zernio";
 
@@ -55,15 +56,15 @@ export async function deliverMessages(ids: string[], admin: Admin | null = creat
     return report;
   }
 
-  for (const row of outbox ?? []) {
-    if (row.status !== "pending") continue;
+  const rows = (outbox ?? []).filter((row) => row.status === "pending");
+  await drainOutbox(rows, async (row) => {
     const { data: claimed } = await admin
       .from("whatsapp_messages")
       .update({ status: "sending" })
       .eq("id", row.id)
       .eq("status", "pending")
       .select("id");
-    if (!claimed?.length) continue;
+    if (!claimed?.length) return;
 
     const kind = row.kind as MessageKind;
     const template = TEMPLATES[kind];
@@ -90,7 +91,7 @@ export async function deliverMessages(ids: string[], admin: Admin | null = creat
     if (skip || !config || !settings?.zernio_account_id) {
       await admin.from("whatsapp_messages").update({ status: "skipped", error: skip }).eq("id", row.id);
       report.skipped++;
-      continue;
+      return;
     }
 
     try {
@@ -128,7 +129,7 @@ export async function deliverMessages(ids: string[], admin: Admin | null = creat
         .eq("id", row.id);
       report.failed++;
     }
-  }
+  });
   return report;
 }
 
@@ -236,15 +237,15 @@ export async function deliverDoctorAlerts(admin: Admin | null = createAdminClien
   }
 
   const template = TEMPLATES.doctor_alert;
-  for (const row of outbox ?? []) {
-    if (row.status !== "pending") continue;
+  const rows = (outbox ?? []).filter((row) => row.status === "pending");
+  await drainOutbox(rows, async (row) => {
     const { data: claimed } = await admin
       .from("whatsapp_doctor_alerts")
       .update({ status: "sending" })
       .eq("id", row.id)
       .eq("status", "pending")
       .select("id");
-    if (!claimed?.length) continue;
+    if (!claimed?.length) return;
 
     const skip = !config
       ? "Zernio no está configurado en el servidor."
@@ -266,7 +267,7 @@ export async function deliverDoctorAlerts(admin: Admin | null = createAdminClien
     if (skip || !config || !settings?.zernio_account_id || !row.phone) {
       await admin.from("whatsapp_doctor_alerts").update({ status: "skipped", error: skip }).eq("id", row.id);
       report.skipped++;
-      continue;
+      return;
     }
 
     try {
@@ -307,7 +308,7 @@ export async function deliverDoctorAlerts(admin: Admin | null = createAdminClien
         .eq("id", row.id);
       report.failed++;
     }
-  }
+  });
   return report;
 }
 
@@ -354,29 +355,27 @@ export async function runReminderJob() {
     admin.from("lab_report_deliveries").update(interrupted).eq("channel", "whatsapp").eq("status", "sending").lt("created_at", stuckBefore),
   ]);
 
-  // Normally sent seconds after the booking; this catches any the booking could not send.
-  const alerts = await deliverDoctorAlerts(admin);
-
   const tomorrow = addDays(await clinicToday(), 1);
   const { data: queued, error } = await admin.rpc("whatsapp_queue_reminders", { for_day: tomorrow });
   if (error) {
+    // A reminder queue failure must not prevent the independent doctor alerts.
+    await deliverDoctorAlerts(admin);
     console.error("whatsapp_queue_reminders failed", error.code, error.message);
     return { ok: false as const, reason: "queue_failed" };
   }
   const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
   const { data: pending } = await admin.from("whatsapp_messages").select("id").eq("status", "pending").gte("created_at", since);
   const ids = [...(queued ?? []), ...(pending ?? []).map((row) => row.id)];
-  const report = await deliverMessages(ids, admin);
-
   const forgetBefore = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
-  await admin.from("whatsapp_webhook_events").delete().lt("received_at", forgetBefore);
-
-  // Copies of lab PDFs that Meta has long since downloaded.
-  try {
-    await deleteOldWhatsAppPdfs(admin);
-  } catch (error) {
-    console.error("lab PDF cleanup failed", error instanceof Error ? error.message : error);
-  }
+  const [report, alerts] = await Promise.all([
+    deliverMessages(ids, admin),
+    // Normally sent seconds after booking; this catches any left in the queue.
+    deliverDoctorAlerts(admin),
+    admin.from("whatsapp_webhook_events").delete().lt("received_at", forgetBefore),
+    deleteOldWhatsAppPdfs(admin).catch((error) => {
+      console.error("lab PDF cleanup failed", error instanceof Error ? error.message : error);
+    }),
+  ]);
 
   return { ok: true as const, day: tomorrow, queued: queued?.length ?? 0, ...report, alerts };
 }

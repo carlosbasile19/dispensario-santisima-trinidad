@@ -10,7 +10,6 @@ import { pdfFileName } from "./config";
 import { getLabReport, type LabReport } from "./data";
 import { stampDay } from "./format";
 import { pdfKey } from "./pdf-key";
-import { renderLabReportPdf } from "./pdf/render";
 import { reportNumber } from "./report";
 import { signatureFor } from "./signature";
 import type { AutoSend } from "./types";
@@ -93,7 +92,10 @@ export async function automaticSend(report: LabReport): Promise<AutoSend> {
  * for WhatsApp. A validated report carries the signer's signature image.
  */
 export async function reportPdf(report: LabReport, { password }: { password?: string } = {}) {
-  const signature = report.status === "final" ? await signatureFor(report.signer, createAdminClient()) : null;
+  const [{ renderLabReportPdf }, signature] = await Promise.all([
+    import("./pdf/render"),
+    report.status === "final" ? signatureFor(report.signer, createAdminClient()) : null,
+  ]);
   return renderLabReportPdf(
     {
       number: report.number,

@@ -4,6 +4,7 @@ import { io } from "next/cache";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import type { Database } from "./database.types";
+import { fetchWithTimeout } from "./fetch";
 
 /**
  * Supabase client for Server Components, Server Actions and Route Handlers.
@@ -24,6 +25,7 @@ export async function createClient() {
     env.supabaseUrl,
     env.supabasePublishableKey,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         getAll() {
           return cookieStore.getAll();

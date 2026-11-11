@@ -2,15 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { Pagination } from "@/components/crm/pagination";
+import { SearchForm } from "@/components/crm/search-form";
 import { Icon } from "@/components/crm/icons";
 import { Avatar, Card, CardHeader, EmptyState, PageHeader, RowsSkeleton, Skeleton, td, th } from "@/components/crm/ui";
 import { ageOn, clinicToday, formatDay, formatDocument, localDay, param, patientName } from "@/lib/crm/clinic";
+import { PAGE_SIZE, pageNumber } from "@/lib/crm/pagination";
 import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Pacientes" };
-
-const LIMIT = 100;
 
 // Patients: doctors see the patients they have a service with (RLS), every
 // other profile all of them. The front desk registers new ones here. The
@@ -67,34 +68,23 @@ async function PatientTable({
   const [params, today] = await Promise.all([searchParams, clinicToday()]);
   const query = param(params.q).trim().slice(0, 80);
   const own = viewer.permissions.schedule === "own";
+  const page = pageNumber(params.pagina);
 
   const supabase = await createClient();
-  const { data } = await supabase.rpc("search_patients", { query, max_rows: LIMIT });
-  const patients = data ?? [];
+  const { data, error } = await supabase.rpc("search_patients_page", {
+    query, page_offset: (page - 1) * PAGE_SIZE, page_size: PAGE_SIZE + 1,
+  });
+  if (error) throw new Error("No se pudieron cargar los pacientes.");
+  const patients = (data ?? []).slice(0, PAGE_SIZE);
+  const hasNext = (data?.length ?? 0) > PAGE_SIZE;
 
   return (
     <>
       <CardHeader
         title={query ? `Resultados para “${query}”` : "Todos"}
-        hint={`${patients.length === LIMIT ? `Los primeros ${LIMIT}` : patients.length} ${patients.length === 1 ? "paciente" : "pacientes"}, por apellido`}
+        hint={`${patients.length} ${patients.length === 1 ? "paciente" : "pacientes"} en esta página, por apellido`}
         action={
-          <form action="/dashboard/pacientes" className="flex w-full gap-2 sm:w-auto">
-            <input
-              type="search"
-              name="q"
-              defaultValue={query}
-              placeholder="Nombre o cédula"
-              aria-label="Buscar paciente"
-              className="h-9 min-w-0 flex-1 rounded-lg border border-outline bg-white px-3 text-sm outline-none focus:border-navy sm:w-[260px] sm:flex-none"
-            />
-            <button
-              type="submit"
-              aria-label="Buscar"
-              className="grid size-9 shrink-0 place-items-center rounded-lg border border-outline bg-white hover:border-navy pointer-coarse:size-11"
-            >
-              <Icon name="search" className="size-4" />
-            </button>
-          </form>
+          <SearchForm path="/dashboard/pacientes" query={query} placeholder="Nombre o cédula" label="Buscar paciente" />
         }
       />
       {patients.length ? (
@@ -151,7 +141,7 @@ async function PatientTable({
       ) : (
         <EmptyState
           icon="patients"
-          title={query ? "Nadie coincide con esa búsqueda" : "Todavía no hay pacientes"}
+          title={page > 1 ? "No hay más pacientes en esta página" : query ? "Nadie coincide con esa búsqueda" : "Todavía no hay pacientes"}
           action={
             viewer.permissions.manageSchedule ? (
               <Link href="/dashboard/pacientes/nuevo" className="text-sm font-medium text-teal hover:text-navy">
@@ -167,6 +157,7 @@ async function PatientTable({
               : "Registra el primero o agéndalo desde la agenda."}
         </EmptyState>
       )}
+      <Pagination path="/dashboard/pacientes" filters={{ q: query }} page={page} hasNext={hasNext} />
     </>
   );
 }

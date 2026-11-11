@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { deleteLabReport, saveLabReport, validateLabReport } from "@/app/dashboard/laboratorio/actions";
 import { DatePicker } from "@/components/crm/date-picker";
@@ -9,7 +9,7 @@ import { ActionForm, SubmitButton } from "@/components/crm/forms";
 import { Icon, type IconName } from "@/components/crm/icons";
 import { Select } from "@/components/crm/select";
 import { inputClass } from "@/components/crm/styles";
-import { Avatar, Badge } from "@/components/crm/ui";
+import { Avatar, Badge, RowsSkeleton } from "@/components/crm/ui";
 import { CATEGORY, FEATURED_PANELS, PANEL } from "@/lib/lab/catalog";
 import { documentOf, fullName, sexLabel, stampTime } from "@/lib/lab/format";
 import { applyFormulas } from "@/lib/lab/formulas";
@@ -17,10 +17,13 @@ import { FLAG_INFO, formatAge, patientFacts } from "@/lib/lab/reference";
 import { PATIENT_TYPE_LABEL, addPanel, addTest, reportNumber, tally, testsIn } from "@/lib/lab/report";
 import { panelSize } from "@/lib/lab/search";
 import { PATIENT_TYPES, type AutoSend, type CategoryKey, type PatientType, type ReportContent, type ReportPatient, type ReportSigner } from "@/lib/lab/types";
-import { CatalogPicker, type CatalogChoice } from "./catalog-picker";
+import type { BoletaReport } from "./boleta";
+import type { CatalogChoice } from "./catalog-picker";
 import { Dialog } from "./dialog";
-import { PreviewPane } from "./preview-pane";
+import { DesktopReportPreview, ReportPreview } from "./report-preview";
 import { FlagBadge, SectionEditor } from "./section-editor";
+
+const CatalogPicker = lazy(() => import("./catalog-picker").then((module) => ({ default: module.CatalogPicker })));
 
 // The report builder: the sample's details, a card per exam with its results
 // grid, and the live preview. Changes save themselves a moment after typing
@@ -150,7 +153,7 @@ export function ReportEditor(props: EditorProps) {
   const name = fullName(props.patient);
   const number = reportNumber(props.number);
   const pdfUrl = `/dashboard/laboratorio/${props.id}/pdf?v=${encodeURIComponent(savedAt)}`;
-  const boleta = {
+  const boleta = useMemo<BoletaReport>(() => ({
     number: props.number,
     revision: props.revision,
     status: "draft" as const,
@@ -160,7 +163,7 @@ export function ReportEditor(props: EditorProps) {
     signer: props.signer,
     finalizedAt: null,
     printedAt: savedAt,
-  };
+  }), [props.number, props.revision, props.patient, props.signer, facts, content, savedAt]);
   const identity = [documentOf(props.patient), formatAge(props.patient.birth_date, content.sampledDay), sexLabel(props.patient.sex)].filter(Boolean).join(" · ");
 
   return (
@@ -276,7 +279,7 @@ export function ReportEditor(props: EditorProps) {
         <aside className="hidden flex-col gap-4 xl:sticky xl:top-6 xl:flex">
           <Summary counts={counts} total={total} signer={props.signer} onJump={jumpTo} onValidate={() => setValidating(true)} />
           <section className="rounded-xl border border-line bg-white p-4">
-            <PreviewPane report={boleta} pdfUrl={pdfUrl} />
+            <DesktopReportPreview report={boleta} pdfUrl={pdfUrl} />
           </section>
         </aside>
       </div>
@@ -310,17 +313,25 @@ export function ReportEditor(props: EditorProps) {
         </div>
       </div>
 
-      <CatalogPicker
-        open={picker.open}
-        initialCategory={picker.category}
-        onClose={() => setPicker((p) => ({ ...p, open: false }))}
-        onAdd={addChoice}
-        present={present}
-        suggested={props.suggested}
-      />
+      {picker.open && (
+        <Suspense fallback={
+          <Dialog open onClose={() => setPicker((p) => ({ ...p, open: false }))} title="Agregar exámenes" icon="flask" size="xl">
+            <RowsSkeleton rows={4} />
+          </Dialog>
+        }>
+          <CatalogPicker
+            open
+            initialCategory={picker.category}
+            onClose={() => setPicker((p) => ({ ...p, open: false }))}
+            onAdd={addChoice}
+            present={present}
+            suggested={props.suggested}
+          />
+        </Suspense>
+      )}
 
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} title="Vista previa" icon="eye" size="xl">
-        <PreviewPane report={boleta} pdfUrl={pdfUrl} compact />
+        <ReportPreview report={boleta} pdfUrl={pdfUrl} compact />
       </Dialog>
 
       <ValidateDialog

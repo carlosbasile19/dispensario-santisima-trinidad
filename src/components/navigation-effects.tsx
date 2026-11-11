@@ -5,17 +5,14 @@ import { addTransitionType, startTransition, useEffect } from "react";
 
 // Client-side navigation behaviour for the public site.
 //
-// 1. Prefetch: the pages are small and static, so all of them are fetched once
-//    the browser is idle and moving between them is instant.
-// 2. Calm page switches: the hero entrance animations play only on the first
+// 1. Calm page switches: the hero entrance animations play only on the first
 //    page a visitor lands on. Once they navigate, <html data-navigated> turns
 //    them off (see globals.css), so switching pages is a short fade, not a
 //    replay of every entrance.
-// 3. From partway down a page, the page crossfade would snapshot the new page
+// 2. From partway down a page, the page crossfade would snapshot the new page
 //    before Next resets the scroll. Those navigations are tagged
 //    "from-scrolled", which the layout maps to no page animation.
 
-const ROUTES = ["/", "/odontologia", "/bioanalisis"];
 const SCROLLED_PX = 80;
 
 function markNavigated() {
@@ -24,16 +21,6 @@ function markNavigated() {
 
 export function NavigationEffects() {
   const router = useRouter();
-
-  useEffect(() => {
-    const run = () => ROUTES.forEach((r) => router.prefetch(r));
-    if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(run, { timeout: 2000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const t = setTimeout(run, 800);
-    return () => clearTimeout(t);
-  }, [router]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
