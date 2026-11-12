@@ -1327,6 +1327,10 @@ export type Database = {
       }
     }
     Functions: {
+      accounting_report: {
+        Args: { bucket: string; from_day: string; to_day: string }
+        Returns: Json
+      }
       book_online: {
         Args: {
           calendar: string
