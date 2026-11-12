@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const TABS = [
   { href: "/dashboard/contabilidad", label: "Cobros y tasa BCV", key: "cobros" },
+  { href: "/dashboard/contabilidad/reportes", label: "Reportes", key: "reportes" },
   { href: "/dashboard/contabilidad/gastos", label: "Gastos", key: "gastos" },
   { href: "/dashboard/contabilidad/tarifas", label: "Tarifas", key: "tarifas" },
 ] as const;
