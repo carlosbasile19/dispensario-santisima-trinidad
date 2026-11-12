@@ -10,7 +10,8 @@ export type IconName =
   | "stethoscope" | "tooth" | "flask" | "shield" | "star" | "refresh" | "id-card" | "bolt" | "alert"
   | "slots" | "calendar-check" | "map-pin" | "globe" | "chat" | "arrow-left" | "arrow-right" | "download"
   | "copy" | "link" | "external" | "trash" | "pause" | "note"
-  | "file" | "printer" | "share" | "sigma" | "more" | "unlock" | "arrow-up" | "arrow-down" | "pen" | "fold";
+  | "file" | "printer" | "share" | "sigma" | "more" | "unlock" | "arrow-up" | "arrow-down" | "pen" | "fold"
+  | "mic" | "sparkle" | "play" | "stop";
 
 const PATHS: Record<Exclude<IconName, keyof typeof EXTRA>, ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1v-8.5Z" />,
@@ -201,7 +202,10 @@ const PATHS: Record<Exclude<IconName, keyof typeof EXTRA>, ReactNode> = {
   ),
 };
 
-const EXTRA: Record<"file" | "printer" | "share" | "sigma" | "more" | "unlock" | "arrow-up" | "arrow-down" | "pen" | "fold", ReactNode> = {
+const EXTRA: Record<
+  "file" | "printer" | "share" | "sigma" | "more" | "unlock" | "arrow-up" | "arrow-down" | "pen" | "fold" | "mic" | "sparkle" | "play" | "stop",
+  ReactNode
+> = {
   file: (
     <>
       <path d="M13.5 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5l-5-5Z" />
@@ -240,6 +244,15 @@ const EXTRA: Record<"file" | "printer" | "share" | "sigma" | "more" | "unlock" |
   "arrow-down": <path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" />,
   pen: <path d="M4.5 19.5h4l10-10a2.8 2.8 0 0 0-4-4l-10 10v4ZM13.5 6.5l4 4" />,
   fold: <path d="M4.5 4.5h15v15h-15zM4.5 12h15" strokeDasharray="0" />,
+  mic: (
+    <>
+      <rect x="9" y="3.5" width="6" height="11" rx="3" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5M8.5 20.5h7" />
+    </>
+  ),
+  sparkle: <path d="M12 3.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5ZM18.5 15.5c.3 1.6 1 2.3 2.5 2.5-1.5.3-2.2 1-2.5 2.5-.3-1.5-1-2.2-2.5-2.5 1.5-.2 2.2-.9 2.5-2.5Z" />,
+  play: <path d="M8 5.5v13l10.5-6.5L8 5.5Z" />,
+  stop: <rect x="6.5" y="6.5" width="11" height="11" rx="2" />,
 };
 
 export function Icon({ name, className = "size-[18px]" }: { name: IconName; className?: string }) {
