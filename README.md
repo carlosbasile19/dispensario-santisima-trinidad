@@ -60,8 +60,10 @@ src/
   lib/bcv/                    # reads the BCV rate (bcv.org.ve, DolarAPI mirror) and records it
   app/api/cron/bcv/           # the daily job that runs it (Vercel Cron, see vercel.json)
   lib/lab/                    # Laboratorio: the test catalog, reference intervals and flags, formulas,
-                              # report checks, the branded PDF (pdf/) and sending it by WhatsApp
-  components/lab/             # the report builder, the printed boleta, the delivery actions
+                              # report checks, the branded PDF (pdf/), sending it by WhatsApp and
+                              # dictation (dictation*.ts: Claude's prompt, checks and merge)
+  components/lab/             # the report builder, the printed boleta, the delivery actions,
+                              # the dictation dialog (dictation/)
   app/imprimir/               # the printable boleta, outside the platform's frame
   lib/whatsapp/               # WhatsApp through Zernio: API, templates, sending, webhook events
   app/api/whatsapp/           # Zernio's webhook and the end of the connect flow; app/api/cron/whatsapp: reminders
@@ -137,7 +139,13 @@ Each professional (a member with the `doctor` or `director` role) can have one b
   - **Suggestions.** Hb can be estimated from the Hto with the clinic's formula (Hto × 0,315 + 0,2), but only as a suggestion. VCM and HCM are computed only when the red cell count was measured; they are not derived from an estimate.
   - **Warnings.** Implausible values ("¿Valor correcto?") and a leukocyte formula that does not add up to 100 % are flagged.
   - **Autosave.** The draft saves itself a moment after typing stops. If another member saved in between, nothing is overwritten (`updated_at` check).
-  4. **Revisar y validar** shows what will be signed: results, out-of-range values, empty tests (left out of the report) and the signer. `finalize_lab_report` then locks the report and copies in the patient's data and the signer. Each validated version is kept in `lab_report_versions`. **Corregir** reopens it as revision 2 with a reason, and the new documents say they replace the earlier one.
+  4. **Revisar y validar** shows what will be signed: results, out-of-range values, empty tests (left out of the report) and the signer. `finalize_lab_report` then locks the report and copies in the patient's data and the signer. Each validated version is kept in `lab_report_versions`. **Corregir** reopens it as revision 2 with a reason, and the new documents say they replace the earlier one. Right after validating, the report's page greets it (`?validado=1`) and says whether the PDF went out by WhatsApp.
+- **Dictation ("Dictar").** Instead of typing, the bioanalyst can read the results aloud: tests and values, the comments of each exam, general observations, the requesting doctor, the patient type and when the sample was taken.
+  - The browser turns the voice into text (Web Speech API, `es-VE`: Chrome, Edge and Safari; Firefox shows a text box, where the phone keyboard's microphone also works). The text appears as it is recognised, with the tests already named. In Chrome the speech service is Google's.
+  - "Terminar y ordenar" sends the text to `POST /dashboard/laboratorio/<id>/dictado`, which asks Claude to sort it into the catalog (structured outputs constrained to the catalog's keys; prompt in `lib/lab/dictation-prompt.ts`). Each result streams back as soon as Claude writes it (NDJSON) and is checked against the catalog first (`lib/lab/dictation.ts`): house number style, the test's usual answers, plausible ranges. A figure Claude was unsure of, a unit it converted ("plaquetas 250" → 250.000) or an implausible value is marked for review.
+  - The review shows every result with the words it came from, its reference and flag for this patient and a field to correct it; any result can be left out. **Aplicar** puts them in the draft (adding the named panels and any missing test; a computed row that was dictated keeps the dictated figure) and the rows glow; **Aplicar y validar** opens the validation dialog. Nothing is saved before applying, and the report still autosaves and is validated as usual.
+  - Claude receives the dictated text, the patient's sex and age and the tests already on the report, never the name or the ID. Nothing of the dictation is stored; the server logs one `lab_dictation` line per request with timings and token counts only.
+  - Setup: `ANTHROPIC_API_KEY` (server only). Optional `LAB_DICTATION_MODEL` (default `claude-opus-5-5`) and `LAB_DICTATION_EFFORT` (default `medium`). Requests opt into Anthropic's server-side fallback when the model declines. Without the key, "Dictar" explains it is not activated. The catalog prompt is ~20k tokens and stays cached for five minutes: the first dictation after a pause costs about US$0.15, the next ones US$0.02–0.05. Results start arriving after 2–6 s; a long dictation (~25 results) finishes in about 15 s.
 - **The signer** is one row, `lab_settings`, seeded with Lcdo. Heriberto M. Arteaga R. (C.I. 11.171.135, M.S.A.S. 9577, Colegio 05-451). Administrators change it at the bottom of Laboratorio. A validated report keeps the signer it was signed with.
 - **The signature image.** Administrators can also upload the signer's handwritten signature (PNG or JPG, up to 1 MB) there. It is stored in the private bucket `lab-signatures`, and `lab_settings.signer_signature` holds its path. Only the PDF draws it: the copy sent by WhatsApp and the one members download. It goes only on validated reports signed by the bioanalyst in `lab_settings`. The printed boleta keeps an empty line, because it is signed by hand.
 - **Catalog.** Tests, units, reference values and usual answers live in `src/lib/lab/catalog.ts`, taken from the clinic's workbooks. A report copies a test's unit and reference rules when the test is added, so editing the catalog never changes an issued report.
@@ -225,7 +233,7 @@ Confirmations and reminders to patients, and alerts of new visits to doctors, go
 | | Supabase | Vercel |
 | --- | --- | --- |
 | Project | `DST` (`xnbinvflvurdpvbctxfh`, eu-central-1) | `dispensario-santisima-trinidad` |
-| Env vars | — | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`; server only: `SUPABASE_SECRET_KEY`, `CRON_SECRET`, `ZERNIO_API_KEY`, `ZERNIO_PROFILE_ID`, `ZERNIO_WEBHOOK_SECRET` |
+| Env vars | — | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`; server only: `SUPABASE_SECRET_KEY`, `CRON_SECRET`, `ZERNIO_API_KEY`, `ZERNIO_PROFILE_ID`, `ZERNIO_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY` (lab dictation; optional `LAB_DICTATION_MODEL`, `LAB_DICTATION_EFFORT`) |
 
 Pushes to `main` deploy to production. Other branches and PRs get preview deployments.
 
@@ -259,7 +267,7 @@ The 31-item performance checklist is covered as follows. “Existing” means th
 | 10 | Redis caching | Not added. No measured shared read bottleneck warrants a new cache service; clinical reads stay fresh and scoped to the caller. |
 | 11 | Remove unused dependencies | Existing dependencies all have callers. OpenTelemetry peers and Speed Insights support monitoring; PGlite is test-only. |
 | 12 | External API deadlines | Server Supabase calls have 30-second deadlines. Zernio retains 20 seconds; BCV has total deadlines and cancellation, including its 9-second on-demand sync. |
-| 13 | Stream AI tokens | Not applicable: the app has no AI response endpoint. |
+| 13 | Stream AI tokens | The lab dictation route streams each result as Claude writes it (NDJSON), so the review fills while the answer is written. |
 | 14 | Optimistic UI | Existing draft edits/autosave and avatar previews retained. Payments, bookings and report validation wait for confirmation. |
 | 15 | Lazy-load images | Next Image lazy loading retained, including sized avatars. Hero image priority remains explicit. |
 | 16 | Parallel requests | Report counts and explicitly selected report lists load together. Reminder queues, doctor alerts and cleanup run concurrently. |

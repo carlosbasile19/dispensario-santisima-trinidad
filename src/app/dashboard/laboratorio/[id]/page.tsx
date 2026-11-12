@@ -9,13 +9,15 @@ import { Modal } from "@/components/crm/modal";
 import { inputClass } from "@/components/crm/styles";
 import { Badge, Card, CardHeader, PageHeader, RowsSkeleton, Skeleton } from "@/components/crm/ui";
 import { DeliveryActions } from "@/components/lab/delivery-actions";
+import { ForgetParam } from "@/components/lab/forget-param";
 import { ReportEditor } from "@/components/lab/report-editor";
 import { ResultsTable } from "@/components/lab/results-table";
-import { formatDay, isUuid, localDay } from "@/lib/crm/clinic";
+import { formatDay, isUuid, localDay, param } from "@/lib/crm/clinic";
 import { getProfessionals } from "@/lib/crm/data";
 import { getViewer, type Viewer } from "@/lib/crm/viewer";
 import { pdfFileName } from "@/lib/lab/config";
 import { getDeliveries, getLabReport, getLabSettings, signerOf, type Delivery, type LabReport } from "@/lib/lab/data";
+import { dictationReady } from "@/lib/lab/dictation-config";
 import { dayLong, documentOf, fullName, sexLabel, stampLong, clockTime } from "@/lib/lab/format";
 import { FLAG_INFO, formatAge } from "@/lib/lab/reference";
 import { PATIENT_TYPE_LABEL, reportNumber, tally } from "@/lib/lab/report";
@@ -29,12 +31,13 @@ export const metadata: Metadata = { title: "Informe de laboratorio" };
 
 // One report. A draft opens in the builder for doctors and administrators;
 // a validated report (or a draft for anyone else) shows how to hand it out
-// (printed, PDF, WhatsApp) with its results, deliveries and versions.
-export default async function LabReportPage({ params }: PageProps<"/dashboard/laboratorio/[id]">) {
+// (printed, PDF, WhatsApp) with its results, deliveries and versions. Right
+// after validating (?validado=1) it says so, and what went out by WhatsApp.
+export default async function LabReportPage({ params, searchParams }: PageProps<"/dashboard/laboratorio/[id]">) {
   const viewer = await getViewer();
   return (
     <Suspense fallback={<ReportSkeleton />}>
-      <Report params={params} viewer={viewer} />
+      <Report params={params} searchParams={searchParams} viewer={viewer} />
     </Suspense>
   );
 }
@@ -50,15 +53,28 @@ function ReportSkeleton() {
   );
 }
 
-async function Report({ params, viewer }: { params: PageProps<"/dashboard/laboratorio/[id]">["params"]; viewer: Viewer }) {
-  const { id } = await params;
+async function Report({
+  params,
+  searchParams,
+  viewer,
+}: {
+  params: PageProps<"/dashboard/laboratorio/[id]">["params"];
+  searchParams: PageProps<"/dashboard/laboratorio/[id]">["searchParams"];
+  viewer: Viewer;
+}) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   if (!isUuid(id)) notFound();
   const report = await getLabReport(id);
   if (!report) notFound();
 
   if (report.status === "draft" && viewer.permissions.labReports) return <Builder report={report} />;
-  return <Delivered report={report} viewer={viewer} />;
+  const justValidated = param(query.validado) === "1" && validatedJustNow(report);
+  return <Delivered report={report} viewer={viewer} justValidated={justValidated} />;
 }
+
+/** The greeting is only for right after the validation, not for the link reopened later. */
+const validatedJustNow = (report: LabReport) =>
+  report.status === "final" && Boolean(report.finalizedAt) && Date.now() - Date.parse(report.finalizedAt!) < 10 * 60_000;
 
 async function visitServices(appointmentId: string | null) {
   if (!appointmentId) return { names: [] as string[], label: null as string | null };
@@ -87,6 +103,7 @@ async function Builder({ report }: { report: LabReport }) {
       reopenReason={report.reopenReason}
       canDiscard={!report.reopenedAt}
       autoSend={autoSend}
+      dictation={dictationReady()}
     />
   );
 }
@@ -106,7 +123,7 @@ const WHATSAPP_STATE: Record<string, string> = {
   read: "Leído en WhatsApp",
 };
 
-async function Delivered({ report, viewer }: { report: LabReport; viewer: Viewer }) {
+async function Delivered({ report, viewer, justValidated = false }: { report: LabReport; viewer: Viewer; justValidated?: boolean }) {
   const supabase = await createClient();
   const [deliveries, professionals, { data: versions }, readiness] = await Promise.all([
     getDeliveries(report.id),
@@ -158,6 +175,23 @@ async function Delivered({ report, viewer }: { report: LabReport; viewer: Viewer
           </>
         }
       />
+
+      {justValidated && (
+        <section className="validated-hero flex items-start gap-4 overflow-hidden rounded-2xl border border-teal/30 bg-gradient-to-br from-mint/30 via-white to-white px-5 py-4 sm:px-6">
+          <ForgetParam name="validado" />
+          <span className="booking-pop grid size-12 shrink-0 place-items-center rounded-full bg-teal text-white shadow-[0_10px_24px_-10px_rgba(30,126,134,0.9)]">
+            <Icon name="check" className="size-6" />
+          </span>
+          <div className="min-w-0 pt-0.5">
+            <p className="font-serif text-[22px] leading-tight">Informe validado y firmado</p>
+            <p className="mt-1 text-sm text-muted">
+              {onWhatsApp
+                ? `El PDF salió por WhatsApp${onWhatsApp.to_phone ? ` al ${onWhatsApp.to_phone}` : ""}, protegido con la clave del paciente. También puedes imprimir la boleta.`
+                : "Ya puedes entregarlo: imprime la boleta, descarga el PDF o envíalo por WhatsApp."}
+            </p>
+          </div>
+        </section>
+      )}
 
       {final ? (
         <section className="flex flex-col gap-3">

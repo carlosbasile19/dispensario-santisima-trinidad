@@ -14,21 +14,27 @@ import { CATEGORY, FEATURED_PANELS, PANEL } from "@/lib/lab/catalog";
 import { documentOf, fullName, sexLabel, stampTime } from "@/lib/lab/format";
 import { applyFormulas } from "@/lib/lab/formulas";
 import { FLAG_INFO, formatAge, patientFacts } from "@/lib/lab/reference";
+import { applyDictation, type Dictation } from "@/lib/lab/dictation";
 import { PATIENT_TYPE_LABEL, addPanel, addTest, reportNumber, tally, testsIn } from "@/lib/lab/report";
 import { panelSize } from "@/lib/lab/search";
 import { PATIENT_TYPES, type AutoSend, type CategoryKey, type PatientType, type ReportContent, type ReportPatient, type ReportSigner } from "@/lib/lab/types";
 import type { BoletaReport } from "./boleta";
 import type { CatalogChoice } from "./catalog-picker";
 import { Dialog } from "./dialog";
+import type { DictationStatus } from "./dictation/dictation-dialog";
+import { VoiceOrb } from "./dictation/voice-orb";
 import { DesktopReportPreview, ReportPreview } from "./report-preview";
 import { FlagBadge, SectionEditor } from "./section-editor";
 
 const CatalogPicker = lazy(() => import("./catalog-picker").then((module) => ({ default: module.CatalogPicker })));
+const DictationDialog = lazy(() => import("./dictation/dictation-dialog").then((module) => ({ default: module.DictationDialog })));
 
 // The report builder: the sample's details, a card per exam with its results
-// grid, and the live preview. Changes save themselves a moment after typing
-// stops ("Guardado"); if someone else saved meanwhile, nothing is
-// overwritten. "Revisar y validar" shows what will be signed, then locks it.
+// grid, and the live preview. Results are typed, or dictated ("Dictar": Claude
+// sorts what was said and the member reviews it before it enters the report).
+// Changes save themselves a moment after typing stops ("Guardado"); if
+// someone else saved meanwhile, nothing is overwritten. "Revisar y validar"
+// shows what will be signed, then locks it.
 
 type SaveState = { kind: "saved"; at: string } | { kind: "saving" } | { kind: "dirty" } | { kind: "error"; message: string; conflict?: boolean };
 
@@ -48,6 +54,8 @@ export type EditorProps = {
   canDiscard: boolean;
   /** Whether validating also sends the PDF by WhatsApp, and where, or why not. */
   autoSend: AutoSend;
+  /** The server can sort dictations (Claude's key is set). */
+  dictation: boolean;
 };
 
 export function ReportEditor(props: EditorProps) {
@@ -59,6 +67,13 @@ export function ReportEditor(props: EditorProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [highlight, setHighlight] = useState<string | null>(null);
+  const [dictating, setDictating] = useState(false);
+  /** Mounted on the first "Dictar", then kept: a dictation in progress survives closing the dialog. */
+  const [dictationUsed, setDictationUsed] = useState(false);
+  const [dictationStatus, setDictationStatus] = useState<DictationStatus>("idle");
+  /** Rows the last dictation filled, glowing for a moment. */
+  const [flashed, setFlashed] = useState<ReadonlySet<string>>(new Set());
+  const [applied, setApplied] = useState<{ count: number; key: number } | null>(null);
   /** The version last saved, for the PDF preview's address. */
   const [savedAt, setSavedAt] = useState(props.updatedAt);
 
@@ -150,6 +165,33 @@ export function ReportEditor(props: EditorProps) {
     setTimeout(() => setHighlight(null), 1800);
   };
 
+  const openDictation = () => {
+    setDictationUsed(true);
+    setDictating(true);
+  };
+
+  const applyDictated = (dictated: Dictation, then: "stay" | "validate") => {
+    const { content: next, touched } = applyDictation(content, dictated);
+    update(() => next);
+    setDictating(false);
+    setFlashed(new Set(touched));
+    setTimeout(() => setFlashed(new Set()), 2800);
+    if (then === "validate") {
+      setValidating(true);
+      return;
+    }
+    setApplied({ count: dictated.results.length, key: Date.now() });
+    const first = next.sections.find((section) => section.rows.some((row) => touched.includes(row.id)));
+    if (first) requestAnimationFrame(() => document.getElementById(`section-${first.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
+  // The confirmation after applying a dictation fades on its own.
+  useEffect(() => {
+    if (!applied) return;
+    const timer = setTimeout(() => setApplied(null), 9000);
+    return () => clearTimeout(timer);
+  }, [applied]);
+
   const name = fullName(props.patient);
   const number = reportNumber(props.number);
   const pdfUrl = `/dashboard/laboratorio/${props.id}/pdf?v=${encodeURIComponent(savedAt)}`;
@@ -184,6 +226,7 @@ export function ReportEditor(props: EditorProps) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <SaveIndicator state={save} onRetry={() => void flush()} />
+          <DictateButton status={dictationStatus} onClick={openDictation} />
           {props.canDiscard && (
             <button
               type="button"
@@ -243,6 +286,7 @@ export function ReportEditor(props: EditorProps) {
                   facts={facts}
                   values={values}
                   highlight={highlight}
+                  flashed={flashed}
                   onChange={(next) => update((c) => ({ ...c, sections: c.sections.map((s) => (s.id === next.id ? next : s)) }))}
                   onRemove={() => removeSection(section.id)}
                   onAddTests={() => setPicker({ open: true, category: section.category })}
@@ -254,6 +298,7 @@ export function ReportEditor(props: EditorProps) {
               suggested={props.suggested}
               onPanel={(key) => update((c) => ({ ...c, sections: addPanel(c.sections, PANEL[key]) }))}
               onCatalog={() => setPicker({ open: true, category: "all" })}
+              onDictate={openDictation}
             />
           )}
 
@@ -296,11 +341,20 @@ export function ReportEditor(props: EditorProps) {
           </p>
           <button
             type="button"
+            onClick={openDictation}
+            aria-label="Dictar resultados"
+            className="relative grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-teal to-navy text-white shadow-[0_6px_16px_-6px_rgba(30,126,134,0.8)]"
+          >
+            <Icon name="mic" className="size-[18px]" />
+            {dictationStatus !== "idle" && <span className="dictate-live absolute -top-0.5 -right-0.5 size-3 rounded-full border-2 border-white bg-coral" />}
+          </button>
+          <button
+            type="button"
             onClick={() => setPreviewOpen(true)}
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline bg-white px-3 text-sm font-medium text-navy"
           >
             <Icon name="eye" className="size-4" />
-            Vista previa
+            <span className="max-sm:sr-only">Vista previa</span>
           </button>
           <button
             type="button"
@@ -330,6 +384,54 @@ export function ReportEditor(props: EditorProps) {
         </Suspense>
       )}
 
+      {dictationUsed && (
+        <Suspense fallback={null}>
+          <DictationDialog
+            open={dictating}
+            onClose={() => setDictating(false)}
+            reportId={props.id}
+            ready={props.dictation}
+            patientName={name}
+            facts={facts}
+            sections={content.sections}
+            onApply={applyDictated}
+            onStatus={setDictationStatus}
+          />
+        </Suspense>
+      )}
+
+      {applied && (
+        <div
+          key={applied.key}
+          role="status"
+          className="dictation-toast fixed inset-x-4 bottom-24 z-30 mx-auto flex max-w-[520px] items-center gap-3 rounded-2xl border border-teal/30 bg-white px-4 py-3 shadow-[0_18px_44px_-18px_rgba(27,42,85,0.55)] xl:bottom-6"
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-teal text-white">
+            <Icon name="check" className="size-4" />
+          </span>
+          <p className="min-w-0 flex-1 text-[13px] leading-snug text-navy">
+            <span className="font-medium">
+              {applied.count} {applied.count === 1 ? "resultado dictado" : "resultados dictados"} en el informe.
+            </span>{" "}
+            <span className="text-muted max-sm:hidden">Se guarda solo; valídalo cuando esté completo.</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setApplied(null);
+              setValidating(true);
+            }}
+            disabled={!counts.results}
+            className="shrink-0 rounded-lg bg-navy px-3 py-2 text-[13px] font-medium text-white hover:bg-teal disabled:opacity-50"
+          >
+            Validar
+          </button>
+          <button type="button" onClick={() => setApplied(null)} aria-label="Cerrar" className="grid size-8 shrink-0 place-items-center rounded-lg text-stone hover:bg-sand">
+            <Icon name="x" className="size-4" />
+          </button>
+        </div>
+      )}
+
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} title="Vista previa" icon="eye" size="xl">
         <ReportPreview report={boleta} pdfUrl={pdfUrl} compact />
       </Dialog>
@@ -353,7 +455,8 @@ export function ReportEditor(props: EditorProps) {
             setSave({ kind: "error", message: result.error, conflict: result.conflict });
             return result.error;
           }
-          router.refresh();
+          // The delivered view greets the validation (and cleans the address again).
+          router.replace(`/dashboard/laboratorio/${props.id}?validado=1`);
           return null;
         }}
       />
@@ -505,55 +608,104 @@ function SampleCard({ content, visit, onChange }: { content: ReportContent; visi
   );
 }
 
-function EmptyExams({ suggested, onPanel, onCatalog }: { suggested: string[]; onPanel: (key: string) => void; onCatalog: () => void }) {
+/** "Dictar" in the header: says when a dictation is under way or waiting for review. */
+function DictateButton({ status, onClick }: { status: DictationStatus; onClick: () => void }) {
+  const label = status === "listening" ? "Escuchando…" : status === "working" ? "Ordenando…" : status === "review" ? "Revisar dictado" : "Dictar";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group hidden h-10 items-center gap-2 rounded-lg bg-gradient-to-br from-teal to-navy pr-4 pl-1.5 text-sm font-medium text-white shadow-[0_8px_20px_-10px_rgba(30,126,134,0.9)] transition-[filter,box-shadow] hover:brightness-110 sm:inline-flex"
+    >
+      <span className="relative grid size-7 place-items-center rounded-full bg-white/15">
+        <Icon name="mic" className="size-4" />
+        {status !== "idle" && <span className="dictate-live absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-[#1e5f6e] bg-coral" />}
+      </span>
+      {label}
+    </button>
+  );
+}
+
+function EmptyExams({
+  suggested,
+  onPanel,
+  onCatalog,
+  onDictate,
+}: {
+  suggested: string[];
+  onPanel: (key: string) => void;
+  onCatalog: () => void;
+  onDictate: () => void;
+}) {
   const featured = [...suggested, ...FEATURED_PANELS.filter((key) => !suggested.includes(key))].slice(0, 9);
   return (
-    <section className="rounded-xl border border-line bg-white px-4 py-6 sm:px-6">
-      <div className="flex flex-col items-center text-center">
-        <span className="grid size-12 place-items-center rounded-full bg-mint/25 text-[#135c62]">
-          <Icon name="flask" className="size-5" />
+    <section className="overflow-hidden rounded-xl border border-line bg-white">
+      <button
+        type="button"
+        onClick={onDictate}
+        className="group flex w-full items-center gap-4 border-b border-line bg-gradient-to-br from-mint/25 via-white to-white px-4 py-5 text-left transition-colors hover:from-mint/35 sm:gap-5 sm:px-6"
+      >
+        <span className="shrink-0 transition-transform duration-500 group-hover:scale-105">
+          <VoiceOrb state="idle" size="sm" />
         </span>
-        <h2 className="mt-3 font-serif text-[24px] leading-tight">¿Qué exámenes se hizo el paciente?</h2>
-        <p className="mt-1 max-w-[52ch] text-sm text-muted">
-          Toca un perfil para agregarlo con sus pruebas, sus unidades y los valores de referencia del laboratorio.
-        </p>
-      </div>
-      <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {featured.map((key) => {
-          const panel = PANEL[key];
-          if (!panel) return null;
-          const fromVisit = suggested.includes(key);
-          return (
-            <li key={key}>
-              <button
-                type="button"
-                onClick={() => onPanel(key)}
-                className={`group flex h-full w-full items-start gap-3 rounded-xl border p-3.5 text-left transition-colors hover:border-navy ${fromVisit ? "border-teal bg-mint/10" : "border-line bg-white"}`}
-              >
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-frost text-navy group-hover:bg-navy group-hover:text-white">
-                  <Icon name="plus" className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-navy">{panel.title}</span>
-                  <span className="mt-0.5 block text-[12px] text-muted">
-                    {fromVisit ? "De la cita · " : ""}
-                    {CATEGORY[panel.category].short} · {panelSize(panel)} pruebas
+        <span className="min-w-0 flex-1">
+          <span className="block font-serif text-[21px] leading-tight text-navy">Dicta los resultados</span>
+          <span className="mt-0.5 block text-[13px] leading-snug text-muted">
+            Lee en voz alta las pruebas, los valores y las observaciones. Claude los ordena en cada examen y tú los revisas antes de que entren al informe.
+          </span>
+        </span>
+        <span className="hidden shrink-0 items-center gap-1.5 rounded-lg bg-navy px-3.5 py-2.5 text-sm font-medium text-white group-hover:bg-teal sm:inline-flex">
+          <Icon name="mic" className="size-4" />
+          Empezar
+        </span>
+      </button>
+      <div className="px-4 py-6 sm:px-6">
+        <div className="flex flex-col items-center text-center">
+          <span className="grid size-12 place-items-center rounded-full bg-mint/25 text-[#135c62]">
+            <Icon name="flask" className="size-5" />
+          </span>
+          <h2 className="mt-3 font-serif text-[24px] leading-tight">O elige los exámenes y escribe</h2>
+          <p className="mt-1 max-w-[52ch] text-sm text-muted">
+            Toca un perfil para agregarlo con sus pruebas, sus unidades y los valores de referencia del laboratorio.
+          </p>
+        </div>
+        <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {featured.map((key) => {
+            const panel = PANEL[key];
+            if (!panel) return null;
+            const fromVisit = suggested.includes(key);
+            return (
+              <li key={key}>
+                <button
+                  type="button"
+                  onClick={() => onPanel(key)}
+                  className={`group flex h-full w-full items-start gap-3 rounded-xl border p-3.5 text-left transition-colors hover:border-navy ${fromVisit ? "border-teal bg-mint/10" : "border-line bg-white"}`}
+                >
+                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-frost text-navy group-hover:bg-navy group-hover:text-white">
+                    <Icon name="plus" className="size-4" />
                   </span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="mt-5 flex justify-center">
-        <button
-          type="button"
-          onClick={onCatalog}
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-navy px-4 text-sm font-medium text-white hover:bg-teal"
-        >
-          <Icon name="search" className="size-4" />
-          Buscar en todo el catálogo
-        </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-navy">{panel.title}</span>
+                    <span className="mt-0.5 block text-[12px] text-muted">
+                      {fromVisit ? "De la cita · " : ""}
+                      {CATEGORY[panel.category].short} · {panelSize(panel)} pruebas
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="mt-5 flex justify-center">
+          <button
+            type="button"
+            onClick={onCatalog}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-navy px-4 text-sm font-medium text-white hover:bg-teal"
+          >
+            <Icon name="search" className="size-4" />
+            Buscar en todo el catálogo
+          </button>
+        </div>
       </div>
     </section>
   );

@@ -47,6 +47,7 @@ export function SectionEditor({
   onRemove,
   onAddTests,
   highlight,
+  flashed,
 }: {
   section: ReportSection;
   facts: PatientFacts;
@@ -56,6 +57,8 @@ export function SectionEditor({
   onRemove: () => void;
   onAddTests: () => void;
   highlight?: string | null;
+  /** Rows a dictation just filled. */
+  flashed?: ReadonlySet<string>;
 }) {
   const [noteOpen, setNoteOpen] = useState(Boolean(section.note));
   const filled = section.rows.filter((r) => r.value.trim()).length;
@@ -125,6 +128,7 @@ export function SectionEditor({
                 facts={facts}
                 values={values}
                 highlight={highlight === row.id}
+                flash={flashed?.has(row.id) ?? false}
                 onChange={(patch) => updateRow(row.id, patch)}
                 onRemove={() => removeRow(row.id)}
               />
@@ -192,6 +196,7 @@ function RowEditor({
   facts,
   values,
   highlight,
+  flash,
   onChange,
   onRemove,
 }: {
@@ -199,6 +204,7 @@ function RowEditor({
   facts: PatientFacts;
   values: Values;
   highlight: boolean;
+  flash: boolean;
   onChange: (patch: Partial<ReportRow>) => void;
   onRemove: () => void;
 }) {
@@ -224,7 +230,7 @@ function RowEditor({
     <li
       className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 py-2.5 pr-12 pl-4 transition-colors sm:items-center sm:gap-y-2 sm:px-5 ${GRID} ${flag ? "bg-coral/[0.035]" : ""} ${
         highlight ? "bg-[#fff8e6]" : ""
-      }`}
+      } ${flash ? "row-flash" : ""}`}
     >
       {/* Test */}
       <div className="col-span-2 min-w-0 sm:col-span-1">

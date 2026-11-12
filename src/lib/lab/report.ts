@@ -85,7 +85,7 @@ export const newSection = (category: CategoryKey, title = CATEGORY[category].tit
   rows: [],
 });
 
-const sortSections = (sections: ReportSection[]) =>
+export const sortSections = (sections: ReportSection[]) =>
   [...sections].sort((a, b) => categoryOrder(a.category) - categoryOrder(b.category));
 
 /**
